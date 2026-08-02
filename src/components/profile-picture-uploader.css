@@ -1,0 +1,103 @@
+.profile-picture-uploader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.profile-picture-stage {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  padding: 7px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #000000, #cb2957);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+.profile-picture-stage .profile-picture-preview {
+  width: 134px;
+  height: 134px;
+  border: 4px solid #ffffff;
+  object-fit: cover;
+  background: #eeeeee;
+}
+
+.profile-picture-busy {
+  position: absolute;
+  inset: 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 50%;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  backdrop-filter: blur(3px);
+}
+
+.profile-picture-preview-badge {
+  position: absolute;
+  right: -7px;
+  bottom: 14px;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: #cb2957;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 18px rgba(203, 41, 87, 0.28);
+}
+
+.profile-picture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.profile-picture-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.profile-picture-file-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #dddddd;
+  border-radius: 12px;
+  background: #eeeeee;
+  color: #2b2b2b;
+  font-size: 0.78rem;
+}
+
+.profile-picture-file-summary svg {
+  color: #cb2957;
+}
+
+.profile-picture-uploader .alert {
+  width: 100%;
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+@media (max-width: 575.98px) {
+  .profile-picture-actions {
+    width: 100%;
+  }
+
+  .profile-picture-actions .btn:not(.btn-link) {
+    flex: 1 1 150px;
+  }
+}

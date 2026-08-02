@@ -21,6 +21,7 @@ const items = [
   ['/app/dashboard', 'Dashboard', LayoutDashboard],
   ['/app/leaderboards', 'Leaderboards', BarChart3],
   ['/app/leagues', 'My Leagues', Trophy],
+  ['/app/leagues/supreme', 'Supreme Leagues', Crown],
   ['/app/leagues/discover', 'Discover', Compass],
   ['/app/leagues/join', 'Join with Code', KeyRound],
   ['/app/leagues/create', 'Create League', PlusCircle],

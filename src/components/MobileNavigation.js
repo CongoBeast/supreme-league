@@ -36,6 +36,7 @@ const navigationSections = [
     label: 'Leagues',
     items: [
       ['/app/leagues', 'My Leagues', 'Active and past competitions', Trophy],
+      ['/app/leagues/supreme', 'Supreme Leagues', 'Subscription competitions and outcomes', Crown],
       ['/app/leagues/discover', 'Discover', 'Browse open competitions', Compass],
       ['/app/leagues/join', 'Join with Code', 'Enter a private league code', KeyRound],
       ['/app/leagues/create', 'Create League', 'Start a new competition', PlusCircle],

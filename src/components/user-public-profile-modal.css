@@ -1,0 +1,316 @@
+.public-player-modal {
+  overflow: hidden;
+  border: 0;
+  border-radius: 26px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .28);
+}
+
+.public-player-modal__header {
+  position: absolute;
+  inset: 0 0 auto auto;
+  z-index: 4;
+  border: 0;
+  padding: 18px;
+}
+
+.public-player-modal__header .btn-close {
+  width: 18px;
+  height: 18px;
+  padding: 10px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, .9);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  opacity: 1;
+}
+
+.public-player-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 245px;
+  padding: 42px 42px 30px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(203, 41, 87, .85), transparent 35%),
+    linear-gradient(135deg, #000 0%, #171717 65%, #2a0b15 100%);
+}
+
+.public-player-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -60px -115px auto;
+  width: 260px;
+  height: 260px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 50%;
+}
+
+.public-player-hero__glow {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  top: -90px;
+  left: 24%;
+  border-radius: 50%;
+  background: rgba(203, 41, 87, .28);
+  filter: blur(28px);
+}
+
+.public-player-identity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.public-player-avatar.avatar-lg {
+  width: 112px;
+  height: 112px;
+  border: 4px solid rgba(255, 255, 255, .94);
+  color: #fff;
+  background: linear-gradient(145deg, #cb2957, #8f1438);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .35);
+}
+
+.public-player-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: #ffb3c8;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.public-player-name {
+  margin: 0;
+  font-size: clamp(1.85rem, 5vw, 2.65rem);
+  font-weight: 900;
+  letter-spacing: -.055em;
+  line-height: 1;
+}
+
+.public-player-team {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, .68);
+  font-weight: 600;
+}
+
+.public-player-hero__facts {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.public-player-hero__facts > div {
+  min-width: 170px;
+  padding: 12px 15px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .07);
+  backdrop-filter: blur(8px);
+}
+
+.public-player-hero__facts span,
+.public-player-hero__facts strong {
+  display: block;
+}
+
+.public-player-hero__facts span {
+  margin-bottom: 3px;
+  color: rgba(255, 255, 255, .6);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.public-player-body {
+  padding: 30px 36px 36px;
+  background: #f8f8f8;
+}
+
+.public-player-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.public-player-metric {
+  display: flex;
+  gap: 13px;
+  min-height: 128px;
+  padding: 20px;
+  border: 1px solid #e5e5e5;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .045);
+}
+
+.public-player-metric__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 13px;
+  color: #fff;
+  background: #cb2957;
+  box-shadow: 0 8px 18px rgba(203, 41, 87, .24);
+}
+
+.public-player-metric__label {
+  color: #777;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.public-player-metric__value {
+  margin-top: 2px;
+  color: #111;
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: -.04em;
+  line-height: 1.1;
+}
+
+.public-player-metric__detail {
+  margin-top: 7px;
+  color: #8a8a8a;
+  font-size: .75rem;
+  line-height: 1.35;
+}
+
+.public-player-sync-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  color: #fff;
+  background: #000;
+}
+
+.public-player-sync-strip svg {
+  color: #ff7da2;
+  flex: 0 0 auto;
+}
+
+.public-player-sync-strip strong,
+.public-player-sync-strip span {
+  display: block;
+}
+
+.public-player-sync-strip span {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, .62);
+  font-size: .8rem;
+}
+
+.public-player-loading {
+  display: grid;
+  min-height: 430px;
+  place-items: center;
+  align-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: #fff;
+  background:
+    radial-gradient(circle at 50% 25%, rgba(203, 41, 87, .42), transparent 28%),
+    #050505;
+}
+
+.public-player-loading p {
+  color: rgba(255, 255, 255, .6);
+}
+
+.public-player-loading__orb {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 18px;
+  border-radius: 20px;
+  color: #fff;
+  background: #cb2957;
+  box-shadow: 0 18px 45px rgba(203, 41, 87, .35);
+}
+
+.leaderboard-player-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 4px 6px 4px 4px;
+  border: 0;
+  border-radius: 12px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  transition: background .18s ease, transform .18s ease;
+}
+
+.leaderboard-player-trigger:hover {
+  background: rgba(203, 41, 87, .08);
+  transform: translateX(2px);
+}
+
+.leaderboard-profile-info {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  color: #555;
+  background: #fff;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.leaderboard-profile-info:hover {
+  border-color: #cb2957;
+  color: #fff;
+  background: #cb2957;
+}
+
+@media (max-width: 575.98px) {
+  .public-player-hero {
+    padding: 46px 22px 24px;
+  }
+
+  .public-player-identity {
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .public-player-avatar.avatar-lg {
+    width: 82px;
+    height: 82px;
+    font-size: 1.45rem;
+  }
+
+  .public-player-body {
+    padding: 20px 16px 24px;
+  }
+
+  .public-player-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-player-metric {
+    min-height: 108px;
+  }
+
+  .public-player-hero__facts > div {
+    min-width: 0;
+    flex: 1 1 130px;
+  }
+}
