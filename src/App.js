@@ -30,6 +30,7 @@ import ProfilePage from './pages/ProfilePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import SupportPage from './pages/SupportPage';
 import LeaderboardsPage from './pages/LeaderboardsPage';
+import SupremeLeaguesPage from './pages/SupremeLeaguesPage';
 
 import { adminRouteElements } from './admin/AdminRoutes';
 
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="/app/dashboard" element={<DashboardPage />} />
               <Route path="/app/leaderboards" element={<LeaderboardsPage />} />
               <Route path="/app/leagues" element={<MyLeaguesPage />} />
+              <Route path="/app/leagues/supreme" element={<SupremeLeaguesPage />} />
               <Route
                 path="/app/leagues/discover"
                 element={<DiscoverLeaguesPage />}
