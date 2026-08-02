@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Card, Col, Form, Modal, Row, Table } from 'react-bootstrap';
+import { Alert, Button, Card, Col, Form, Modal, Row, Table } from 'react-bootstrap';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -68,6 +68,8 @@ export default function AdminFinancesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [error, setError] = useState('');
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [adminNote, setAdminNote] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -130,6 +132,22 @@ export default function AdminFinancesPage() {
     } finally {
       setModalLoading(false);
     }
+  };
+
+
+  const updateWithdrawalStatus = async (status) => {
+    if (!selected?._id) return;
+    setStatusBusy(true);
+    setError('');
+    try {
+      const result = await adminApi(`/withdrawals/${selected._id}/status`, { method: 'PATCH', body: { status, note: adminNote } });
+      setSelected(result.transaction);
+      setAdminNote('');
+      const query = buildQuery({ ...filters, page, limit: 50 });
+      setData(await adminApi(`/transactions?${query}`));
+    } catch (requestError) {
+      setError(requestError.message || 'The withdrawal status could not be updated.');
+    } finally { setStatusBusy(false); }
   };
 
   if (loading) {
@@ -397,6 +415,23 @@ export default function AdminFinancesPage() {
               </div>
             </dl>
           ) : null}
+          {selected?.type === 'withdrawal' && !modalLoading && <div className="mt-4 border-top pt-3">
+            <h3 className="h6">Withdrawal review</h3>
+            <Alert variant="info" className="small">Payouts must be made only to the USD destination shown below. The user is emailed whenever the status changes.</Alert>
+            <Row className="g-2 mb-3">
+              <Col md={6}><strong>Method:</strong> {selected.metadata?.method || '—'}</Col>
+              <Col md={6}><strong>Bank:</strong> {selected.metadata?.bankName || '—'}</Col>
+              <Col md={6}><strong>Branch:</strong> {selected.metadata?.branchNumber || '—'}</Col>
+              <Col md={6}><strong>Account:</strong> {selected.metadata?.accountNumber || '—'} (USD)</Col>
+            </Row>
+            <Form.Control as="textarea" rows={2} className="mb-3" placeholder="Optional internal note" value={adminNote} onChange={(event) => setAdminNote(event.target.value)} />
+            <div className="d-flex flex-wrap gap-2">
+              {selected.status === 'pending' && <Button disabled={statusBusy} onClick={() => updateWithdrawalStatus('processing')}>Mark processing</Button>}
+              {['pending','processing'].includes(selected.status) && <Button variant="success" disabled={statusBusy} onClick={() => updateWithdrawalStatus('completed')}>Mark paid</Button>}
+              {['pending','processing'].includes(selected.status) && <Button variant="danger" disabled={statusBusy} onClick={() => updateWithdrawalStatus('rejected')}>Reject</Button>}
+              {['pending','processing'].includes(selected.status) && <Button variant="outline-secondary" disabled={statusBusy} onClick={() => updateWithdrawalStatus('cancelled')}>Cancel</Button>}
+            </div>
+          </div>}
         </Modal.Body>
       </Modal>
     </>
