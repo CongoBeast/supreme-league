@@ -10,7 +10,8 @@ import StatusBadge from '../components/StatusBadge';
 import CurrencyAmount from '../components/CurrencyAmount';
 import PaynowCheckoutModal from '../components/PaynowCheckoutModal';
 
-const withdrawalMethods = ['EcoCash', 'InnBucks', "O'mari", 'OneMoney', 'Bank Transfer', 'Visa', 'Mastercard'];
+const withdrawalMethods = ['EcoCash', 'InnBucks', "O'mari", 'OneMoney', 'Bank Transfer'];
+const zimBanks = ['BancABC Zimbabwe','CBZ Bank','CABS','Ecobank Zimbabwe','FBC Bank','First Capital Bank Zimbabwe','Nedbank Zimbabwe','NMB Bank Zimbabwe','Stanbic Bank Zimbabwe','Steward Bank','ZB Bank'];
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
@@ -22,7 +23,7 @@ export default function WalletPage() {
   const [showDepositCheckout, setShowDepositCheckout] = useState(false);
   const [filters, setFilters] = useState({ search: '', type: '', status: '', from: '', to: '' });
   const [depositAmount, setDepositAmount] = useState('');
-  const [withdrawal, setWithdrawal] = useState({ amount: '', method: 'EcoCash', maskedAccount: '', confirm: false });
+  const [withdrawal, setWithdrawal] = useState({ amount: '', method: 'EcoCash', accountNumber: '', bankName: '', branchNumber: '', currency: 'USD', confirm: false });
   const [busy, setBusy] = useState('');
 
   const load = async (page = 1) => {
@@ -39,6 +40,16 @@ export default function WalletPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const handleWalletUpdated = (event) => {
+      const nextWallet = event.detail?.wallet;
+      if (!nextWallet) return;
+      setWallet((current) => current ? { ...current, wallet: nextWallet } : { wallet: nextWallet });
+    };
+    window.addEventListener('sfl:wallet-updated', handleWalletUpdated);
+    return () => window.removeEventListener('sfl:wallet-updated', handleWalletUpdated);
+  }, []);
 
   const openDepositCheckout = (event) => {
     event.preventDefault();
@@ -68,7 +79,7 @@ export default function WalletPage() {
         body: withdrawal,
       });
       setNotice(data.message || 'Withdrawal request created for review.');
-      setWithdrawal({ amount: '', method: 'EcoCash', maskedAccount: '', confirm: false });
+      setWithdrawal({ amount: '', method: 'EcoCash', accountNumber: '', bankName: '', branchNumber: '', currency: 'USD', confirm: false });
       await load();
     } catch (withdrawalError) { setNotice(withdrawalError.message); } finally { setBusy(''); }
   };
@@ -105,10 +116,8 @@ export default function WalletPage() {
 
   return (
     <>
-      <PageHeader eyebrow="USD account" title="Wallet & Transactions" description="Use Paynow Express Checkout for in-page deposits and track every immutable wallet update." />
+      <PageHeader eyebrow="USD account" title="Wallet & Transactions" description="Deposit with Paynow, spend from your confirmed balance, and see completed wallet changes immediately in the immutable ledger." />
       {notice && <Alert variant="info">{notice}</Alert>}
-      {wallet.demoFunds && <div className="demo-banner mb-4">Mock Paynow mode is enabled. No real payment is processed.</div>}
-      {wallet.paymentMode === 'paynow' && wallet.paynowTestMode && <div className="demo-banner mb-4">Paynow integration test mode is expected. Confirm the integration is still in Paynow test mode before accepting payments.</div>}
 
       <div className="surface-card p-4 mb-4">
         <Row className="g-3 small">
@@ -147,19 +156,23 @@ export default function WalletPage() {
         <Col xl={6}>
           <div className="surface-card p-4 h-100">
             <div className="d-flex align-items-center gap-2 mb-3"><ArrowUpFromLine /><h2 className="h4 mb-0">Withdrawal request</h2></div>
-            <Alert variant="light" className="small">Paynow checkout receives payments; withdrawals remain pending until your payout process reviews and completes them.</Alert>
+            <Alert variant="light" className="small"><strong>USD payouts only.</strong> The minimum withdrawal is US$5.00. Approved payouts may take 3–4 business days, depending on the selected method.</Alert>
             <Form onSubmit={submitWithdrawal}>
               <Row className="g-3">
                 <Col md={6}>
                   <Form.Label>Amount</Form.Label>
-                  <Form.Control type="number" step="0.01" min="0.01" max={(maxWithdrawal / 100).toFixed(2)} required value={withdrawal.amount} onChange={(event) => setWithdrawal({ ...withdrawal, amount: event.target.value })} />
-                  <Form.Text>Maximum {moneyFromCents(maxWithdrawal)}</Form.Text>
+                  <Form.Control type="number" step="0.01" min="5" max={(maxWithdrawal / 100).toFixed(2)} required value={withdrawal.amount} onChange={(event) => setWithdrawal({ ...withdrawal, amount: event.target.value })} />
+                  <Form.Text>Minimum US$5.00 · Maximum {moneyFromCents(maxWithdrawal)}</Form.Text>
                 </Col>
                 <Col md={6}>
                   <Form.Label>Destination method</Form.Label>
                   <Form.Select value={withdrawal.method} onChange={(event) => setWithdrawal({ ...withdrawal, method: event.target.value })}>{withdrawalMethods.map((method) => <option key={method}>{method}</option>)}</Form.Select>
                 </Col>
-                <Col xs={12}><Form.Label>Masked account</Form.Label><Form.Control placeholder="e.g. +263 ****** 567" required value={withdrawal.maskedAccount} onChange={(event) => setWithdrawal({ ...withdrawal, maskedAccount: event.target.value })} /></Col>
+                {withdrawal.method === 'Bank Transfer' ? <>
+                  <Col md={6}><Form.Label>Bank name</Form.Label><Form.Select required value={withdrawal.bankName} onChange={(event) => setWithdrawal({ ...withdrawal, bankName: event.target.value })}><option value="">Select a Zimbabwean bank</option>{zimBanks.map((bank) => <option key={bank} value={bank}>{bank}</option>)}</Form.Select></Col>
+                  <Col md={6}><Form.Label>Branch number</Form.Label><Form.Control required value={withdrawal.branchNumber} onChange={(event) => setWithdrawal({ ...withdrawal, branchNumber: event.target.value })} /></Col>
+                  <Col xs={12}><Form.Label>USD account number</Form.Label><Form.Control required value={withdrawal.accountNumber} onChange={(event) => setWithdrawal({ ...withdrawal, accountNumber: event.target.value })} /><Form.Text>We only pay into USD-denominated bank accounts.</Form.Text></Col>
+                </> : <Col xs={12}><Form.Label>Registered mobile-money number</Form.Label><Form.Control placeholder="e.g. +263 77 123 4567" required value={withdrawal.accountNumber} onChange={(event) => setWithdrawal({ ...withdrawal, accountNumber: event.target.value })} /></Col>}
                 <Col xs={12}><Form.Check required label="I confirm this withdrawal request" checked={withdrawal.confirm} onChange={(event) => setWithdrawal({ ...withdrawal, confirm: event.target.checked })} /></Col>
                 <Col xs={12}><Button type="submit" variant="dark" disabled={busy === 'withdrawal'}>{busy === 'withdrawal' ? 'Submitting…' : 'Request withdrawal'}</Button></Col>
               </Row>

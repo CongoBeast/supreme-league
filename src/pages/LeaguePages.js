@@ -372,7 +372,7 @@ export function CreateLeaguePage() {
 
                 <Col xs={12}>
                   <Alert variant="light" className="small">
-                    This league is private. Share its code only with people you want to invite. The league remains a draft until your Paynow entry payment succeeds.
+                    This league is private. Share its code only with people you want to invite. The league remains a draft until your wallet or Paynow entry payment succeeds.
                   </Alert>
                   <Form.Check
                     required
@@ -471,7 +471,7 @@ export function JoinLeagueByCodePage() {
       <PageHeader
         eyebrow="Private leagues"
         title="Join with a League Code"
-        description="Enter the code supplied by the league creator, review the competition and pay your entry immediately."
+        description="Enter the code supplied by the league creator, then choose your Supreme wallet or Paynow at checkout."
       />
 
       <Row className="g-4">
@@ -551,7 +551,7 @@ export function JoinLeagueByCodePage() {
             <ol className="muted mb-0 ps-3">
               <li className="mb-2">Enter the exact code shared by the creator.</li>
               <li className="mb-2">Review the entry fee, format and dates.</li>
-              <li className="mb-2">Complete Paynow Express Checkout.</li>
+              <li className="mb-2">Choose your Supreme wallet balance or Paynow Express Checkout.</li>
               <li>Your membership appears only after payment is confirmed.</li>
             </ol>
           </div>
@@ -576,7 +576,6 @@ export function LeagueDetailsPage() {
   const { leagueId } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
   const [scoreBusy, setScoreBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -595,20 +594,6 @@ export function LeagueDetailsPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
-
-  const joinPublicLeague = async () => {
-    setBusy(true);
-    setNotice('');
-    try {
-      const response = await api(`/api/leagues/${leagueId}/join`, { method: 'POST', body: {} });
-      setNotice(response.message);
-      await load();
-    } catch (requestError) {
-      setNotice(requestError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const syncScores = async () => {
     setScoreBusy(true);
@@ -640,8 +625,8 @@ export function LeagueDetailsPage() {
     );
   } else if (!league.joined && !league.inviteOnly && ['open', 'upcoming'].includes(league.status)) {
     headerAction = (
-      <Button onClick={joinPublicLeague} disabled={busy}>
-        {busy ? 'Joining…' : `Join for ${moneyFromCents(league.entryFeeCents)}`}
+      <Button onClick={() => setCheckoutOpen(true)}>
+        Choose payment method · {moneyFromCents(league.entryFeeCents)}
       </Button>
     );
   }
@@ -667,7 +652,7 @@ export function LeagueDetailsPage() {
       {notice && <Alert variant={notice.toLowerCase().includes('failed') || notice.toLowerCase().includes('cannot') ? 'danger' : 'info'}>{notice}</Alert>}
       {league.canPayEntry && (
         <Alert variant="warning">
-          Your place is not active yet. Complete Paynow checkout before sharing the league as ready to join.
+          Your place is not active yet. Complete payment from your wallet or Paynow before sharing the league as ready to join.
         </Alert>
       )}
 
@@ -806,7 +791,7 @@ export function LeagueDetailsPage() {
         title={league.createdByCurrentUser ? 'Activate your league' : `Join ${league.name}`}
         onCompleted={async () => {
           setCheckoutOpen(false);
-          setNotice('Payment confirmed. Your league entry is active.');
+          setNotice('Payment confirmed. Your league entry is active, your wallet balance is current, and a receipt email has been sent.');
           await load();
         }}
       />

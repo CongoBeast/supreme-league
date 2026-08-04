@@ -40,7 +40,7 @@ export default function ProfileAvatar({
   return (
     <span
       className={`avatar ${sizeClass} ${className}`}
-      aria-label={`${name} profile placeholder`}
+      aria-label={`${name} profile initials`}
     >
       {initials}
     </span>

@@ -69,7 +69,7 @@ export default function SubscriptionPage() {
   }, [data, searchParams]);
 
   const completed = async () => {
-    setNotice('Payment confirmed. Your subscription and wallet records have been updated.');
+    setNotice('Payment confirmed. Your subscription is active, your balance is current, and a receipt email has been sent.');
     setCheckoutPlan(null);
     await load();
   };
@@ -89,11 +89,10 @@ export default function SubscriptionPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Plans" title="Subscription" description="Pay for qualifying Supreme-operated competitions using Paynow Express Checkout without leaving the application." />
+      <PageHeader eyebrow="Plans" title="Subscription" description="Choose your Supreme wallet balance or Paynow Express Checkout. Prices and balances are always verified by the server." />
       {notice && <Alert variant="success">{notice}</Alert>}
-      {data.mockCheckout && <div className="demo-banner mb-4">Paynow mock checkout is enabled. No real payment is processed.</div>}
-      {data.paymentMode === 'paynow' && data.paynowTestMode && <div className="demo-banner mb-4">Paynow integration test mode is expected. Confirm the integration is still in Paynow test mode before using test payments.</div>}
-      {data.paymentMode === 'paynow' && <Alert variant="light">Available in-page methods: EcoCash, OneMoney, InnBucks and O'mari. First-time card payments require Paynow-hosted tokenisation and are not collected in this form.</Alert>}
+      {data.wallet && <Alert variant="light"><strong>Available wallet balance: {moneyFromCents(data.wallet.availableBalanceCents)}</strong>. You can choose Wallet or Paynow before confirming each subscription purchase.</Alert>}
+      {data.paymentMode === 'paynow' && <Alert variant="light">Paynow methods: EcoCash, OneMoney, InnBucks and O'mari. Wallet payments are deducted only after you tick the confirmation box.</Alert>}
 
       {data.subscription && (
         <div className="surface-card p-4 mb-4">
@@ -131,7 +130,7 @@ export default function SubscriptionPage() {
                 {plan.competitionsIncluded.map((item) => <div className="d-flex gap-2 small mb-2" key={item}><CheckCircle2 size={16} className="text-brand flex-shrink-0" />{item}</div>)}
               </div>
               <Button className="mt-4" variant={data.subscription?.planCode === plan.planCode ? 'outline-dark' : 'dark'} disabled={data.subscription?.planCode === plan.planCode} onClick={() => openCheckout(plan)}>
-                {data.subscription?.planCode === plan.planCode ? 'Current plan' : 'Pay with Paynow'}
+                {data.subscription?.planCode === plan.planCode ? 'Current plan' : 'Choose payment method'}
               </Button>
             </div>
           </Col>
@@ -164,7 +163,7 @@ export default function SubscriptionPage() {
         purpose="subscription"
         planCode={checkoutPlan?.planCode || ''}
         amountCents={checkoutPlan?.amountCents || 0}
-        title={checkoutPlan ? `Subscribe to ${checkoutPlan.planName}` : 'Subscription checkout'}
+        title={checkoutPlan ? `Pay for ${checkoutPlan.planName}` : 'Subscription checkout'}
         onCompleted={completed}
       />
     </>

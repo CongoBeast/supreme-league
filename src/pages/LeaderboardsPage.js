@@ -14,7 +14,7 @@ function CompetitionBoard({ board }) {
       <EmptyState
         icon={Trophy}
         title={`No ${board.name} standings yet`}
-        description="This table is populated only from paid league members and stored FPL score syncs. No demo players are added."
+        description="Standings appear after qualifying paid entries receive their first official score sync."
       />
     );
   }
@@ -48,18 +48,18 @@ export default function LeaderboardsPage() {
   useEffect(() => { load(); }, []);
 
   if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!data) return <LoadingScreen fullScreen={false} label="Loading database leaderboards" />;
+  if (!data) return <LoadingScreen fullScreen={false} label="Loading leaderboards" />;
 
   return (
     <>
       <PageHeader
         eyebrow="Rankings"
         title="Leaderboards"
-        description="Rankings are read from MongoDB. Competition scores come from paid league entries, while wins and prize earnings come from completed prize transactions."
+        description="Competition standings use qualifying paid entries and official score records. Wins and prize earnings appear only after completed settlement transactions."
       />
       <Alert variant="light" className="border">
         <Trophy size={18} className="me-2" />
-        No placeholder players are shown. A win appears only after a completed prize transaction is recorded for the winner.
+        Every displayed win is backed by a completed settlement and prize transaction recorded by the platform.
       </Alert>
       <div className="surface-card p-4">
         <Tabs defaultActiveKey="earnings" className="mb-3">

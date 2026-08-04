@@ -67,7 +67,7 @@ export default function TeamPage() {
   if (!data.linked) {
     const description = data.providerMode === 'public'
       ? 'Enter your public FPL manager ID to load your latest publicly available gameweek team.'
-      : 'Enter your public manager ID to load prototype mock fantasy data.';
+      : 'Enter your public FPL manager ID to connect your team.';
 
     return (
       <>
@@ -206,7 +206,7 @@ export default function TeamPage() {
             <h2 className="h4">Sync and confirmation</h2>
             <div className="d-flex justify-content-between py-2 border-bottom">
               <span className="muted">Data source</span>
-              <strong>{snapshot.providerMode === 'public' ? 'Public FPL data' : 'Prototype mock'}</strong>
+              <strong>{snapshot.providerMode === 'public' ? 'Official FPL data' : 'Configured data source'}</strong>
             </div>
             <div className="d-flex justify-content-between py-2 border-bottom">
               <span className="muted">Last sync</span>

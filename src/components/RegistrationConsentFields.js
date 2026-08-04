@@ -1,35 +1,28 @@
 import React, { useState } from 'react';
-import { Button, Form, Modal } from 'react-bootstrap';
-
-const TERMS_SECTIONS = [
-  ['Eligibility', 'You must be at least 18 years old and provide accurate account information.'],
-  ['Competition rules', 'Every competition is governed by its published dates, scoring basis, eligibility conditions, tie-breaks and result-review process.'],
-  ['Payments and wallets', 'Entry fees, subscriptions, prizes, refunds and adjustments are recorded in USD. Real-money functionality remains subject to provider, legal and operational approval.'],
-  ['Fair prize splits', 'When a Supreme-operated competition ends in a tie for the highest score, the published prize is split fairly among all tied winners.'],
-  ['Account conduct', 'You may not create duplicate accounts, link a fantasy team that belongs to another person, manipulate payments or interfere with standings.'],
-  ['Prototype notice', 'This product copy requires professional legal review before a commercial launch.'],
-];
-
-const PRIVACY_SECTIONS = [
-  ['Information collected', 'We process account details, contact information, linked fantasy manager IDs, competition activity, wallet records, transactions and support communications.'],
-  ['How information is used', 'Information is used to operate accounts, competitions, payments, security checks, customer support and requested notifications.'],
-  ['Data sharing', 'Data may be shared with infrastructure, email and payment providers only where needed to provide the service, investigate issues or meet legal obligations.'],
-  ['Sensitive information', 'Do not send passwords, OTPs, wallet PINs, CVVs or full card numbers through profile fields, support tickets or email.'],
-  ['Retention and rights', 'Financial and audit records may need to be retained. Other account information should be managed according to the final approved privacy policy and applicable law.'],
-  ['Review notice', 'This prototype privacy wording requires professional legal review before production use.'],
-];
+import { Alert, Button, Form, Modal } from 'react-bootstrap';
+import {
+  COMPETITION_RULES,
+  LEGAL_EFFECTIVE_DATE,
+  LEGAL_VERSION,
+  PRIVACY_SECTIONS,
+  SECURITY_WARNING,
+  TERMS_SECTIONS,
+} from '../content/legalContent';
 
 function PolicyModal({ show, onHide, title, sections }) {
   return (
     <Modal show={show} onHide={onHide} centered size="lg" scrollable>
       <Modal.Header closeButton>
-        <Modal.Title>{title}</Modal.Title>
+        <div>
+          <Modal.Title>{title}</Modal.Title>
+          <div className="small text-muted">Version {LEGAL_VERSION} · Effective {LEGAL_EFFECTIVE_DATE}</div>
+        </div>
       </Modal.Header>
-      <Modal.Body>
-        {sections.map(([heading, text]) => (
-          <section key={heading} className="mb-4">
-            <h3 className="h6 mb-2">{heading}</h3>
-            <p className="text-muted mb-0">{text}</p>
+      <Modal.Body className="legal-modal-body">
+        {sections.map((section) => (
+          <section key={section.heading} className="mb-4">
+            <h3 className="h6 mb-2">{section.heading}</h3>
+            {section.paragraphs.map((paragraph, index) => <p className="text-muted" key={`${section.heading}-${index}`}>{paragraph}</p>)}
           </section>
         ))}
       </Modal.Body>
@@ -46,13 +39,16 @@ export default function RegistrationConsentFields({ values, onChange }) {
 
   return (
     <div className="registration-consents">
+      <Alert variant="warning" className="small">
+        <strong>Account security:</strong> {SECURITY_WARNING}
+      </Alert>
       <Form.Check
         id="ageConfirmed"
         type="checkbox"
         required
         checked={Boolean(values.ageConfirmed)}
         onChange={update('ageConfirmed')}
-        label={<span>I confirm that I am at least 18 years old <span className="text-danger">*</span></span>}
+        label={<span>I confirm that I am at least 18 years old and the information I provided is accurate <span className="text-danger">*</span></span>}
       />
       <Form.Check
         id="termsAccepted"
@@ -62,7 +58,7 @@ export default function RegistrationConsentFields({ values, onChange }) {
         onChange={update('termsAccepted')}
         label={(
           <span>
-            I accept the{' '}
+            I have read and agree to the{' '}
             <Button variant="link" className="p-0 align-baseline" onClick={(event) => { event.preventDefault(); setModal('terms'); }}>
               Terms and Conditions
             </Button>{' '}
@@ -78,7 +74,7 @@ export default function RegistrationConsentFields({ values, onChange }) {
         onChange={update('privacyAccepted')}
         label={(
           <span>
-            I accept the{' '}
+            I have read and agree to the{' '}
             <Button variant="link" className="p-0 align-baseline" onClick={(event) => { event.preventDefault(); setModal('privacy'); }}>
               Privacy Policy
             </Button>{' '}
@@ -86,8 +82,34 @@ export default function RegistrationConsentFields({ values, onChange }) {
           </span>
         )}
       />
+      <Form.Check
+        id="rulesAccepted"
+        type="checkbox"
+        required
+        checked={Boolean(values.rulesAccepted)}
+        onChange={update('rulesAccepted')}
+        label={(
+          <span>
+            I accept the{' '}
+            <Button variant="link" className="p-0 align-baseline" onClick={(event) => { event.preventDefault(); setModal('rules'); }}>
+              Competition Rules and management review process
+            </Button>{' '}
+            <span className="text-danger">*</span>
+          </span>
+        )}
+      />
+      <Form.Check
+        id="securityAcknowledged"
+        type="checkbox"
+        required
+        checked={Boolean(values.securityAcknowledged)}
+        onChange={update('securityAcknowledged')}
+        label={<span>I understand that Supreme will never ask me by SMS, WhatsApp, email or telephone for an OTP, password, PIN, CVC or direct transfer of funds <span className="text-danger">*</span></span>}
+      />
+      <p className="small text-muted mt-3 mb-0">By creating an account, you electronically accept version {LEGAL_VERSION} of the Terms, Privacy Policy and Competition Rules.</p>
       <PolicyModal show={modal === 'terms'} onHide={() => setModal(null)} title="Terms and Conditions" sections={TERMS_SECTIONS} />
       <PolicyModal show={modal === 'privacy'} onHide={() => setModal(null)} title="Privacy Policy" sections={PRIVACY_SECTIONS} />
+      <PolicyModal show={modal === 'rules'} onHide={() => setModal(null)} title="Competition Rules" sections={COMPETITION_RULES} />
     </div>
   );
 }
