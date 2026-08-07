@@ -7,11 +7,14 @@ import StatCard from '../components/StatCard';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import LoadingScreen from '../components/LoadingScreen';
+import { extractFplManagerId } from '../utils/fplManagerLink';
 
 export default function TeamPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [managerId, setManagerId] = useState('');
+  const [managerInput, setManagerInput] = useState('');
+  const [managerInputError, setManagerInputError] = useState('');
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -28,8 +31,19 @@ export default function TeamPage() {
     load();
   }, []);
 
+  const handleManagerInput = (value) => {
+    setManagerInput(value);
+    const parsed = extractFplManagerId(value);
+    setManagerId(parsed.managerId);
+    setManagerInputError(parsed.error);
+  };
+
   const sync = async (event) => {
     event?.preventDefault();
+    if (!data?.linked && !managerId) {
+      setManagerInputError('Paste your FPL team link so we can find your manager number.');
+      return;
+    }
     setBusy('sync');
     setNotice('');
     try {
@@ -39,6 +53,8 @@ export default function TeamPage() {
       });
       setNotice(result.message || 'Team synced successfully.');
       setManagerId('');
+      setManagerInput('');
+      setManagerInputError('');
       await load();
     } catch (requestError) {
       setNotice(requestError.message);
@@ -66,15 +82,15 @@ export default function TeamPage() {
 
   if (!data.linked) {
     const description = data.providerMode === 'public'
-      ? 'Enter your public FPL manager ID to load your latest publicly available gameweek team.'
-      : 'Enter your public FPL manager ID to connect your team.';
+      ? 'Paste a link from your Fantasy Premier League team and we will find your manager number automatically.'
+      : 'Paste a link from your Fantasy Premier League team to connect it to Supreme.';
 
     return (
       <>
         <PageHeader
           eyebrow="My Team"
-          title="Link your fantasy manager ID"
-          description="Use only your public numeric manager ID. Supreme Fantasy League will never ask for your fantasy-platform password."
+          title="Connect your Fantasy Premier League team"
+          description="Copy the link from any page inside your FPL team and paste it below. We will extract your public manager number automatically. Never enter your FPL password."
         />
         {notice && <Alert variant="info">{notice}</Alert>}
         <div className="surface-card p-4 p-md-5">
@@ -84,16 +100,44 @@ export default function TeamPage() {
             description={description}
             action={(
               <Form onSubmit={sync} className="mx-auto" style={{ maxWidth: 420 }}>
-                <Form.Control
-                  className="mb-3"
-                  inputMode="numeric"
-                  pattern="[0-9]+"
-                  placeholder="Numeric manager ID"
-                  required
-                  value={managerId}
-                  onChange={(event) => setManagerId(event.target.value.replace(/\D/g, ''))}
-                />
-                <Button type="submit" disabled={busy === 'sync'}>
+                <Form.Group className="text-start mb-3">
+                  <Form.Label>Paste your FPL team link</Form.Label>
+                  <Form.Control
+                    type="text"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="https://fantasy.premierleague.com/en/entry/1149514/transfers"
+                    required
+                    value={managerInput}
+                    isInvalid={Boolean(managerInputError)}
+                    onChange={(event) => handleManagerInput(event.target.value)}
+                    onPaste={(event) => {
+                      const pasted = event.clipboardData.getData('text');
+                      if (pasted) {
+                        event.preventDefault();
+                        handleManagerInput(pasted);
+                      }
+                    }}
+                  />
+                  <Form.Control.Feedback type="invalid">{managerInputError}</Form.Control.Feedback>
+                  <Form.Text className="text-muted">
+                    Copy the URL while viewing your FPL team, transfers, history or gameweek page.
+                  </Form.Text>
+                </Form.Group>
+
+                <Form.Group className="text-start mb-3">
+                  <Form.Label>Manager ID</Form.Label>
+                  <Form.Control
+                    value={managerId}
+                    readOnly
+                    placeholder="Detected automatically"
+                    aria-label="Detected FPL manager ID"
+                  />
+                  {managerId && <Form.Text className="text-success">Manager found: {managerId}</Form.Text>}
+                </Form.Group>
+
+                <Button type="submit" disabled={busy === 'sync' || !managerId}>
                   {busy === 'sync' ? 'Linking…' : 'Link and Sync Team'}
                 </Button>
               </Form>

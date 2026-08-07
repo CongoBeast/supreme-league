@@ -9,6 +9,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import ErrorState from '../components/ErrorState';
 import StatusBadge from '../components/StatusBadge';
 import ReferralCodeCard from '../components/ReferralCodeCard';
+import { extractFplManagerId } from '../utils/fplManagerLink';
 
 export default function ProfilePage() {
   const { setUser } = useAuth();
@@ -18,6 +19,8 @@ export default function ProfilePage() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [managerId, setManagerId] = useState('');
+  const [managerInput, setManagerInput] = useState('');
+  const [managerInputError, setManagerInputError] = useState('');
 
   const load = async () => {
     setError('');
@@ -36,6 +39,8 @@ export default function ProfilePage() {
         notificationPreferences: response.profile.notificationPreferences || {},
       });
       setManagerId(response.user.fplManagerId || '');
+      setManagerInput('');
+      setManagerInputError('');
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -71,8 +76,19 @@ export default function ProfilePage() {
     setNotice(response.message || 'Profile picture updated.');
   };
 
+  const handleManagerInput = (value) => {
+    setManagerInput(value);
+    const parsed = extractFplManagerId(value);
+    setManagerId(parsed.managerId);
+    setManagerInputError(parsed.error);
+  };
+
   const linkTeam = async (event) => {
     event.preventDefault();
+    if (!managerId) {
+      setManagerInputError('Paste your FPL team link so we can find your manager number.');
+      return;
+    }
     setBusy(true);
     setNotice('');
     try {
@@ -134,11 +150,39 @@ export default function ProfilePage() {
         <Tab eventKey="connected" title="Connected Accounts">
           <div className="surface-card p-4">
             <div className="d-flex align-items-center gap-2 mb-3"><Link2 /><h2 className="h4 mb-0">Fantasy account</h2></div>
-            <p className="muted">Only enter a public fantasy manager ID. Never enter your fantasy-platform password.</p>
+            <p className="muted mb-4">Copy the link from any page inside your Fantasy Premier League team and paste it below. We will extract the public manager number automatically. Never enter your FPL password.</p>
             <Form onSubmit={linkTeam}>
-              <Row className="g-2 align-items-end">
-                <Col md={8}><Form.Label>Fantasy manager ID</Form.Label><Form.Control inputMode="numeric" pattern="[0-9]+" value={managerId} onChange={(event) => setManagerId(event.target.value.replace(/\D/g, ''))} /></Col>
-                <Col md={4}><Button className="w-100" type="submit" disabled={busy}>Link account</Button></Col>
+              <Row className="g-3 align-items-end">
+                <Col lg={8}>
+                  <Form.Label>FPL team link</Form.Label>
+                  <Form.Control
+                    type="text"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="https://fantasy.premierleague.com/en/entry/1149514/transfers"
+                    value={managerInput}
+                    isInvalid={Boolean(managerInputError)}
+                    onChange={(event) => handleManagerInput(event.target.value)}
+                    onPaste={(event) => {
+                      const pasted = event.clipboardData.getData('text');
+                      if (pasted) {
+                        event.preventDefault();
+                        handleManagerInput(pasted);
+                      }
+                    }}
+                  />
+                  <Form.Control.Feedback type="invalid">{managerInputError}</Form.Control.Feedback>
+                  <Form.Text className="text-muted">Transfers, history and gameweek links all work.</Form.Text>
+                </Col>
+                <Col lg={4}>
+                  <Form.Label>Manager ID</Form.Label>
+                  <Form.Control readOnly value={managerId} placeholder="Detected automatically" />
+                </Col>
+                <Col xs={12} className="d-flex flex-wrap align-items-center gap-3">
+                  <Button type="submit" disabled={busy || !managerId}>{busy ? 'Linking…' : 'Link account'}</Button>
+                  {managerId && <span className="small text-success">Manager found: {managerId}</span>}
+                </Col>
               </Row>
             </Form>
             {data.user.fantasyTeamName && <div className="soft-card p-3 mt-4"><div className="small muted">Fantasy team</div><strong>{data.user.fantasyTeamName}</strong></div>}
