@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Col, Form, Row } from 'react-bootstrap';
-import { RefreshCw, ShieldCheck, Users } from 'lucide-react';
+import { Link2, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../services/api';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
@@ -38,10 +38,35 @@ export default function TeamPage() {
     setManagerInputError(parsed.error);
   };
 
+  const link = async (event) => {
+    event?.preventDefault();
+    if (!managerId) {
+      setManagerInputError('Paste your FPL team link so we can find your manager number.');
+      return;
+    }
+    setBusy('link');
+    setNotice('');
+    try {
+      await api('/api/profile/link-fantasy-team', {
+        method: 'POST',
+        body: { managerId },
+      });
+      setNotice('FPL account linked successfully. Team sync is a separate step.');
+      setManagerId('');
+      setManagerInput('');
+      setManagerInputError('');
+      await load();
+    } catch (requestError) {
+      setNotice(requestError.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
   const sync = async (event) => {
     event?.preventDefault();
-    if (!data?.linked && !managerId) {
-      setManagerInputError('Paste your FPL team link so we can find your manager number.');
+    if (!data?.linked) {
+      setNotice('Link your FPL account before syncing team data.');
       return;
     }
     setBusy('sync');
@@ -49,12 +74,9 @@ export default function TeamPage() {
     try {
       const result = await api('/api/team/sync', {
         method: 'POST',
-        body: { managerId: managerId || undefined },
+        body: {},
       });
       setNotice(result.message || 'Team synced successfully.');
-      setManagerId('');
-      setManagerInput('');
-      setManagerInputError('');
       await load();
     } catch (requestError) {
       setNotice(requestError.message);
@@ -99,7 +121,7 @@ export default function TeamPage() {
             title="No fantasy team linked"
             description={description}
             action={(
-              <Form onSubmit={sync} className="mx-auto" style={{ maxWidth: 420 }}>
+              <Form onSubmit={link} className="mx-auto" style={{ maxWidth: 420 }}>
                 <Form.Group className="text-start mb-3">
                   <Form.Label>Paste your FPL team link</Form.Label>
                   <Form.Control
@@ -137,10 +159,48 @@ export default function TeamPage() {
                   {managerId && <Form.Text className="text-success">Manager found: {managerId}</Form.Text>}
                 </Form.Group>
 
-                <Button type="submit" disabled={busy === 'sync' || !managerId}>
-                  {busy === 'sync' ? 'Linking…' : 'Link and Sync Team'}
+                <Button type="submit" disabled={busy === 'link' || !managerId}>
+                  <Link2 size={16} /> {busy === 'link' ? 'Linking…' : 'Link FPL Account'}
                 </Button>
+                <Form.Text className="d-block mt-2 text-muted">
+                  Linking only verifies and stores your public manager ID. Syncing your gameweek team is separate and can be done later.
+                </Form.Text>
               </Form>
+            )}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (!data.snapshot) {
+    const manager = data.manager || {};
+    const teamTitle = manager.teamName || 'FPL account linked';
+    const managerLabel = manager.managerId || data.managerId || 'Linked';
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="My Team"
+          title={teamTitle}
+          description={`Manager ID ${managerLabel}`}
+          actions={(
+            <Button variant="outline-dark" onClick={sync} disabled={Boolean(busy)}>
+              <RefreshCw size={16} /> {busy === 'sync' ? 'Syncing…' : 'Sync Team'}
+            </Button>
+          )}
+        />
+        {notice && <Alert variant="info">{notice}</Alert>}
+        {data.providerWarning && <Alert variant="warning">{data.providerWarning}</Alert>}
+        <div className="surface-card p-4 p-md-5">
+          <EmptyState
+            icon={ShieldCheck}
+            title="FPL account linked"
+            description="Your manager ID is safely linked to Supreme. During preseason, FPL may not publish gameweek picks yet. You do not need to unlink or re-enter your manager ID; use Sync Team once gameweek team data becomes available."
+            action={(
+              <Button onClick={sync} disabled={Boolean(busy)}>
+                <RefreshCw size={16} /> {busy === 'sync' ? 'Syncing…' : 'Try Sync Team'}
+              </Button>
             )}
           />
         </div>
