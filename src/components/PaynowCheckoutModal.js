@@ -49,7 +49,11 @@ export default function PaynowCheckoutModal({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const completedReference = useRef('');
-  const idempotencyKey = useRef(makeIdempotencyKey());
+  const idempotencyKeys = useRef({ wallet: makeIdempotencyKey(), paynow: makeIdempotencyKey() });
+
+  const rotateIdempotencyKey = (source) => {
+    idempotencyKeys.current[source] = makeIdempotencyKey();
+  };
 
   const selectedMethod = useMemo(() => METHODS.find((item) => item.code === method), [method]);
   const availableBalanceCents = Number(wallet?.availableBalanceCents || 0);
@@ -89,7 +93,7 @@ export default function PaynowCheckoutModal({
     setError('');
     setBusy('');
     completedReference.current = '';
-    idempotencyKey.current = makeIdempotencyKey();
+    idempotencyKeys.current = { wallet: makeIdempotencyKey(), paynow: makeIdempotencyKey() };
     if (walletAllowed) loadWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, user?.phone, walletAllowed]);
@@ -160,9 +164,10 @@ export default function PaynowCheckoutModal({
             : { amount: (Number(amountCents) / 100).toFixed(2), method, phone };
       }
 
+      const requestSource = paymentSource === 'wallet' && walletAllowed ? 'wallet' : 'paynow';
       const data = await api(path, {
         method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKey.current },
+        headers: { 'Idempotency-Key': idempotencyKeys.current[requestSource] },
         body,
       });
       setPayment(data.payment);
@@ -170,6 +175,13 @@ export default function PaynowCheckoutModal({
       await notifyCompleted(data.payment, data);
     } catch (initError) {
       setError(initError.message);
+      const requestSource = paymentSource === 'wallet' && walletAllowed ? 'wallet' : 'paynow';
+      // A definite 4xx response means this attempt is finished. Give the next manual
+      // attempt a fresh key. Network/5xx failures keep the same key because the client
+      // cannot know whether the server already committed the operation.
+      if (Number(initError.status) >= 400 && Number(initError.status) < 500) {
+        rotateIdempotencyKey(requestSource);
+      }
       if (/balance/i.test(initError.message || '')) loadWallet();
     } finally {
       setBusy('');
