@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Card, Col, Form, Row, Table } from 'react-bootstrap';
+import { Alert, Button, Card, Col, Form, Modal, Row, Table } from 'react-bootstrap';
 import { ShieldCheck, Trophy, UserRound, WalletCards } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
@@ -16,6 +16,16 @@ export default function AdminUserDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelForm, setCancelForm] = useState({ refundAmount: '', reason: '' });
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
+  const [creditOpen, setCreditOpen] = useState(false);
+  const [creditForm, setCreditForm] = useState({ amount: '', reason: '' });
+  const [creditBusy, setCreditBusy] = useState(false);
+  const [creditError, setCreditError] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -49,6 +59,76 @@ export default function AdminUserDetailPage() {
       setError(requestError.message || 'The user status could not be updated.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openCancelModal = (subscription) => {
+    setCancelError('');
+    setCancelTarget(subscription);
+    setCancelForm({
+      refundAmount: (Number(subscription.amountCents || 0) / 100).toFixed(2),
+      reason: '',
+    });
+  };
+
+  const closeCancelModal = () => {
+    if (cancelBusy) return;
+    setCancelTarget(null);
+  };
+
+  const submitCancelRefund = async (event) => {
+    event.preventDefault();
+    if (!cancelTarget) return;
+    setCancelBusy(true);
+    setCancelError('');
+    try {
+      await adminApi(`/subscriptions/${cancelTarget._id}/cancel-refund`, {
+        method: 'POST',
+        body: {
+          reason: cancelForm.reason,
+          refundAmountCents: Math.round(Number(cancelForm.refundAmount || 0) * 100),
+        },
+      });
+      setCancelTarget(null);
+      setMessage('Subscription cancelled and refund credited to the member\'s wallet.');
+      await load();
+    } catch (requestError) {
+      setCancelError(requestError.message || 'The subscription could not be cancelled.');
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
+  const openCreditModal = () => {
+    setCreditError('');
+    setCreditForm({ amount: '', reason: '' });
+    setCreditOpen(true);
+  };
+
+  const closeCreditModal = () => {
+    if (creditBusy) return;
+    setCreditOpen(false);
+  };
+
+  const submitWalletCredit = async (event) => {
+    event.preventDefault();
+    setCreditBusy(true);
+    setCreditError('');
+    try {
+      await adminApi(`/users/${id}/wallet/credit`, {
+        method: 'POST',
+        body: {
+          amountCents: Math.round(Number(creditForm.amount || 0) * 100),
+          reason: creditForm.reason,
+        },
+      });
+      setCreditOpen(false);
+      setMessage('Wallet credited and the member has been emailed.');
+      await load();
+    } catch (requestError) {
+      setCreditError(requestError.message || 'The wallet could not be credited.');
+    } finally {
+      setCreditBusy(false);
     }
   };
 
@@ -148,9 +228,14 @@ export default function AdminUserDetailPage() {
         </Col>
         <Col xl={5}>
           <Card className="admin-card h-100">
-            <Card.Header>
-              <h2 className="admin-card-title">Wallet information</h2>
-              <div className="admin-card-subtitle">Current wallet balances and last balance activity.</div>
+            <Card.Header className="d-flex align-items-center justify-content-between">
+              <div>
+                <h2 className="admin-card-title">Wallet information</h2>
+                <div className="admin-card-subtitle">Current wallet balances and last balance activity.</div>
+              </div>
+              <Button size="sm" variant="outline-primary" onClick={openCreditModal}>
+                Credit wallet
+              </Button>
             </Card.Header>
             <Card.Body>
               <dl className="admin-detail-grid mb-0">
@@ -174,7 +259,7 @@ export default function AdminUserDetailPage() {
         {data.subscriptions.length ? (
           <Table responsive className="admin-table">
             <thead>
-              <tr><th>Plan</th><th>Status</th><th>Payment method</th><th>Activated</th><th>Valid until</th></tr>
+              <tr><th>Plan</th><th>Status</th><th>Payment method</th><th>Activated</th><th>Valid until</th><th></th></tr>
             </thead>
             <tbody>
               {data.subscriptions.map((subscription) => (
@@ -184,6 +269,13 @@ export default function AdminUserDetailPage() {
                   <td>{humanize(subscription.paymentMethod)}</td>
                   <td>{dateTime(subscription.activatedAt || subscription.createdAt)}</td>
                   <td>{dateTime(subscription.validUntil)}</td>
+                  <td className="text-end">
+                    {subscription.status !== 'cancelled' && (
+                      <Button size="sm" variant="outline-danger" onClick={() => openCancelModal(subscription)}>
+                        Cancel &amp; refund
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -247,6 +339,103 @@ export default function AdminUserDetailPage() {
           <AdminEmpty title="No transactions recorded" message="This user has no financial activity." />
         )}
       </Card>
+
+      <Modal show={Boolean(cancelTarget)} onHide={closeCancelModal} centered>
+        <Form onSubmit={submitCancelRefund}>
+          <Modal.Header closeButton>
+            <Modal.Title>Cancel subscription &amp; refund</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {cancelError && <Alert variant="danger">{cancelError}</Alert>}
+            <p className="text-muted small mb-3">
+              Cancelling <strong>{cancelTarget?.planName || humanize(cancelTarget?.planCode)}</strong> will end it
+              immediately and credit the refund below to the member&apos;s wallet. Use this when a subscription
+              was made too late for the league or cycle it targeted.
+            </p>
+            <Form.Group className="mb-3">
+              <Form.Label>Refund amount (USD)</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                step="0.01"
+                max={(Number(cancelTarget?.amountCents || 0) / 100).toFixed(2)}
+                value={cancelForm.refundAmount}
+                onChange={(event) => setCancelForm((current) => ({ ...current, refundAmount: event.target.value }))}
+                required
+              />
+              <Form.Text className="text-muted">
+                Defaults to the full amount paid ({money(cancelTarget?.amountCents)}). Lower it for a partial refund.
+              </Form.Text>
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Reason</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                placeholder="e.g. Joined the league after the joining deadline"
+                value={cancelForm.reason}
+                onChange={(event) => setCancelForm((current) => ({ ...current, reason: event.target.value }))}
+                required
+              />
+              <Form.Text className="text-muted">Included in the email sent to the member.</Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={closeCancelModal} disabled={cancelBusy}>
+              Close
+            </Button>
+            <Button type="submit" variant="danger" disabled={cancelBusy}>
+              {cancelBusy ? 'Cancelling…' : 'Cancel subscription & refund'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal show={creditOpen} onHide={closeCreditModal} centered>
+        <Form onSubmit={submitWalletCredit}>
+          <Modal.Header closeButton>
+            <Modal.Title>Credit wallet</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {creditError && <Alert variant="danger">{creditError}</Alert>}
+            <p className="text-muted small mb-3">
+              Adds funds directly to this member&apos;s wallet — for example, to compensate the price difference
+              when they replaced or upgraded a subscription or league entry.
+            </p>
+            <Form.Group className="mb-3">
+              <Form.Label>Credit amount (USD)</Form.Label>
+              <Form.Control
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={creditForm.amount}
+                onChange={(event) => setCreditForm((current) => ({ ...current, amount: event.target.value }))}
+                required
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Reason</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                placeholder="e.g. Compensation for upgrading from Monthly Entry to Plus"
+                value={creditForm.reason}
+                onChange={(event) => setCreditForm((current) => ({ ...current, reason: event.target.value }))}
+                required
+              />
+              <Form.Text className="text-muted">Included in the email sent to the member.</Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={closeCreditModal} disabled={creditBusy}>
+              Close
+            </Button>
+            <Button type="submit" variant="primary" disabled={creditBusy}>
+              {creditBusy ? 'Crediting…' : 'Credit wallet'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </>
   );
 }
