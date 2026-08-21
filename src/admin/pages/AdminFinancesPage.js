@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Form, Modal, Row, Table } from 'react-bootstrap';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
   CircleDollarSign,
+  RefreshCw,
   Search,
   WalletCards,
 } from 'lucide-react';
@@ -45,6 +46,23 @@ const transactionStatuses = [
   'refunded',
 ];
 
+function isoDate(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+
+function defaultFinanceRange() {
+  const today = new Date();
+  return {
+    from: isoDate(new Date(Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth() - 29,
+      1
+    ))),
+    to: isoDate(today),
+  };
+}
+
 function sumSummary(summary, predicate) {
   return summary
     .filter((item) => predicate(item._id || {}))
@@ -52,6 +70,7 @@ function sumSummary(summary, predicate) {
 }
 
 export default function AdminFinancesPage() {
+  const initialRange = useMemo(() => defaultFinanceRange(), []);
   const [filters, setFilters] = useState({
     search: '',
     type: '',
@@ -60,6 +79,8 @@ export default function AdminFinancesPage() {
     direction: '',
     minAmount: '',
     maxAmount: '',
+    from: initialRange.from,
+    to: initialRange.to,
   });
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
@@ -71,46 +92,47 @@ export default function AdminFinancesPage() {
   const [statusBusy, setStatusBusy] = useState(false);
   const [adminNote, setAdminNote] = useState('');
 
+  const load = useCallback(async (forceRefresh = false) => {
+    const firstLoad = !data;
+    if (firstLoad) setLoading(true);
+    else setRefreshing(true);
+    setError('');
+
+    try {
+      const query = buildQuery({
+        ...filters,
+        page,
+        limit: 50,
+        refresh: forceRefresh ? Date.now() : undefined,
+      });
+      setData(await adminApi(`/transactions?${query}`));
+    } catch (requestError) {
+      setError(requestError.message || 'The financial records could not be loaded.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [filters, page, data]);
+
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      const firstLoad = !data;
-      firstLoad ? setLoading(true) : setRefreshing(true);
-      setError('');
-
-      try {
-        const query = buildQuery({ ...filters, page, limit: 50 });
-        setData(await adminApi(`/transactions?${query}`));
-      } catch (requestError) {
-        setError(requestError.message || 'The financial records could not be loaded.');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }, filters.search ? 300 : 0);
-
+    const timer = setTimeout(() => load(), filters.search ? 300 : 0);
     return () => clearTimeout(timer);
   }, [filters, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totals = useMemo(() => {
     const summary = data?.summary || [];
     const completedCredit = (id) => id.status === 'completed' && id.direction === 'credit';
+    const breakdown = data?.revenueBreakdown || [];
+    const amountFor = (type) => Number(
+      breakdown.find((item) => item.type === type)?.amountCents || 0
+    );
 
     return {
-      inflow: sumSummary(summary, completedCredit),
-      subscriptions: sumSummary(
-        summary,
-        (id) => completedCredit(id) && id.type === 'subscription'
-      ),
-      leagueRevenue: sumSummary(
-        summary,
-        (id) => completedCredit(id) && ['entry-fee', 'platform-fee'].includes(id.type)
-      ),
-      payoutsDue: sumSummary(
-        summary,
-        (id) =>
-          ['prize', 'withdrawal'].includes(id.type) &&
-          ['pending', 'processing'].includes(id.status)
-      ),
+      inflow: Number(data?.cashIn?.amountCents ?? sumSummary(summary, completedCredit)),
+      subscriptions: amountFor('subscription'),
+      leagueRevenue: amountFor('entry-fee') + amountFor('platform-fee'),
+      revenue: Number(data?.revenue?.amountCents || 0),
+      payoutsDue: Number(data?.payoutsDue?.amountCents || 0),
     };
   }, [data]);
 
@@ -134,20 +156,23 @@ export default function AdminFinancesPage() {
     }
   };
 
-
   const updateWithdrawalStatus = async (status) => {
     if (!selected?._id) return;
     setStatusBusy(true);
     setError('');
     try {
-      const result = await adminApi(`/withdrawals/${selected._id}/status`, { method: 'PATCH', body: { status, note: adminNote } });
+      const result = await adminApi(`/withdrawals/${selected._id}/status`, {
+        method: 'PATCH',
+        body: { status, note: adminNote },
+      });
       setSelected(result.transaction);
       setAdminNote('');
-      const query = buildQuery({ ...filters, page, limit: 50 });
-      setData(await adminApi(`/transactions?${query}`));
+      await load(true);
     } catch (requestError) {
       setError(requestError.message || 'The withdrawal status could not be updated.');
-    } finally { setStatusBusy(false); }
+    } finally {
+      setStatusBusy(false);
+    }
   };
 
   if (loading) {
@@ -163,33 +188,43 @@ export default function AdminFinancesPage() {
       <AdminPageHeader
         title="Financial management"
         description="Review incoming funds, subscriptions, league fees, payouts and every recorded transaction."
+        actions={(
+          <Button
+            variant="outline-dark"
+            onClick={() => load(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw size={16} className={refreshing ? 'admin-spin' : ''} />
+            <span className="ms-2">{refreshing ? 'Refreshing…' : 'Refresh database'}</span>
+          </Button>
+        )}
       />
 
       <Row className="g-3 mb-4">
         <Col sm={6} xl={3}>
           <StatCard
-            label="Completed inflow"
+            label="Cash inflow"
             value={money(totals.inflow)}
-            detail="All completed credit transactions"
+            detail={`${filters.from} to ${filters.to} · external funds only`}
             icon={ArrowDownToLine}
             tone="success"
           />
         </Col>
         <Col sm={6} xl={3}>
           <StatCard
-            label="Subscriptions"
-            value={money(totals.subscriptions)}
-            detail="Completed subscription revenue"
-            icon={WalletCards}
+            label="Platform revenue"
+            value={money(totals.revenue)}
+            detail="Selected date range"
+            icon={CircleDollarSign}
             tone="primary"
           />
         </Col>
         <Col sm={6} xl={3}>
           <StatCard
-            label="League revenue"
-            value={money(totals.leagueRevenue)}
-            detail="Entry and platform fees"
-            icon={CircleDollarSign}
+            label="Subscriptions"
+            value={money(totals.subscriptions)}
+            detail="Completed subscription transactions"
+            icon={WalletCards}
             tone="warning"
           />
         </Col>
@@ -206,7 +241,30 @@ export default function AdminFinancesPage() {
 
       <Card className="admin-card admin-filter-card">
         <Card.Body>
-          <Row className="g-3">
+          <Row className="g-3 align-items-end">
+            <Col sm={6} md={4} xl={3}>
+              <Form.Label className="admin-filter-label">From</Form.Label>
+              <Form.Control
+                type="date"
+                value={filters.from}
+                onChange={(event) => updateFilter('from', event.target.value)}
+              />
+            </Col>
+            <Col sm={6} md={4} xl={3}>
+              <Form.Label className="admin-filter-label">To</Form.Label>
+              <Form.Control
+                type="date"
+                value={filters.to}
+                onChange={(event) => updateFilter('to', event.target.value)}
+              />
+            </Col>
+            <Col xl={6}>
+              <div className="small text-secondary">
+                The default financial view covers the last 30 months. Changing these dates recalculates the database totals;
+                the cash-in total uses the transaction settlement date so completed funds are not lost from the reporting period.
+              </div>
+            </Col>
+
             <Col xl={4}>
               <Form.Label className="admin-filter-label">Search transactions</Form.Label>
               <div className="position-relative">

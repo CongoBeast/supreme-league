@@ -8,6 +8,7 @@
   --admin-sidebar: #101828;
   --admin-sidebar-soft: #1d2939;
   --admin-accent: var(--bs-primary, #0d6efd);
+  --admin-chart-secondary: #101828;
   --admin-radius: 18px;
   --admin-shadow: 0 16px 38px rgba(16, 24, 40, 0.07);
 }
@@ -794,5 +795,109 @@
 
   .admin-auth-copy h1 {
     font-size: 2.3rem;
+  }
+}
+
+.admin-spin {
+  animation: admin-spin 0.85s linear infinite;
+}
+
+.admin-analytics-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-analytics-title {
+  margin-top: 2px;
+}
+
+.admin-analytics-stat {
+  min-height: 108px;
+  padding: 16px 17px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: #fbfcfe;
+}
+
+.admin-analytics-stat-label {
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-analytics-stat-value {
+  margin-top: 7px;
+  color: var(--admin-text);
+  font-size: 1.55rem;
+  font-weight: 780;
+  letter-spacing: -0.03em;
+}
+
+.admin-analytics-stat-detail {
+  margin-top: 5px;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+}
+
+.admin-chart-wrap {
+  min-width: 0;
+  color: var(--admin-text);
+}
+
+.admin-chart-wrap svg {
+  display: block;
+  min-height: 220px;
+}
+
+.admin-chart-caption {
+  margin-top: -4px;
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+}
+
+.admin-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 4px;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.admin-chart-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 50%;
+}
+
+.admin-chart-dot-cash {
+  background: var(--admin-accent);
+}
+
+.admin-chart-dot-revenue {
+  background: var(--admin-chart-secondary, #101828);
+}
+
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .admin-analytics-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-analytics-header .btn {
+    width: 100%;
   }
 }

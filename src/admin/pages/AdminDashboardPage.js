@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Row } from 'react-bootstrap';
+import { Button, Card, Col, Row } from 'react-bootstrap';
 import {
   CircleDollarSign,
   LifeBuoy,
+  RefreshCw,
   Trophy,
   UserPlus,
   UsersRound,
@@ -11,24 +12,31 @@ import {
 
 import { adminApi, humanize, money } from '../adminApi';
 import { AdminError, AdminLoading } from '../components/AdminDataState';
+import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel';
 import AdminPageHeader from '../components/AdminPageHeader';
 import StatCard from '../components/StatCard';
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (forceRefresh = false) => {
+    if (data && forceRefresh) setRefreshing(true);
+    else setLoading(true);
     setError('');
 
     try {
-      setData(await adminApi('/dashboard'));
+      const suffix = forceRefresh ? `?refresh=${Date.now()}` : '';
+      setData(await adminApi(`/dashboard${suffix}`));
+      if (forceRefresh) setRefreshToken((value) => value + 1);
     } catch (requestError) {
       setError(requestError.message || 'The dashboard could not be loaded.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -40,16 +48,28 @@ export default function AdminDashboardPage() {
     return <AdminLoading message="Loading administration dashboard…" />;
   }
 
-  if (error) {
-    return <AdminError message={error} onRetry={load} />;
+  if (error && !data) {
+    return <AdminError message={error} onRetry={() => load(true)} />;
   }
 
   return (
     <>
       <AdminPageHeader
         title="Administration dashboard"
-        description="A live operational view of users, leagues, revenue, payouts and support workload."
+        description="A live operational view of users, leagues, cash inflows, revenue, payouts and support workload."
+        actions={(
+          <Button
+            variant="outline-dark"
+            onClick={() => load(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw size={16} className={refreshing ? 'admin-spin' : ''} />
+            <span className="ms-2">{refreshing ? 'Refreshing…' : 'Refresh database'}</span>
+          </Button>
+        )}
       />
+
+      {error && <AdminError message={error} />}
 
       <Row className="g-3 mb-4">
         <Col sm={6} xl={3}>
@@ -81,9 +101,9 @@ export default function AdminDashboardPage() {
         </Col>
         <Col sm={6} xl={3}>
           <StatCard
-            label="Revenue collected"
-            value={money(data.finances.revenueCents)}
-            detail={`${money(data.finances.payoutsDueCents)} due out`}
+            label="Cash inflow — 30 months"
+            value={money(data.finances.cashInCents)}
+            detail="Completed external funds received"
             icon={CircleDollarSign}
             tone="success"
           />
@@ -174,11 +194,24 @@ export default function AdminDashboardPage() {
                   </div>
                   <strong>{money(data.finances.payoutsDueCents)}</strong>
                 </div>
+
+                <div className="d-flex align-items-center gap-3 p-3 rounded-4 bg-light">
+                  <span className="admin-stat-icon admin-stat-icon-success">
+                    <CircleDollarSign size={20} />
+                  </span>
+                  <div className="flex-grow-1">
+                    <div className="fw-semibold">Revenue — 30 months</div>
+                    <div className="small text-secondary">Subscriptions, league fees and platform fees</div>
+                  </div>
+                  <strong>{money(data.finances.revenueCents)}</strong>
+                </div>
               </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
+
+      <AdminAnalyticsPanel refreshToken={refreshToken} />
     </>
   );
 }
