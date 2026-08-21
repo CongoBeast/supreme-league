@@ -12,6 +12,15 @@ import StatusBadge from '../components/StatusBadge';
 import CurrencyAmount from '../components/CurrencyAmount';
 import LeaderboardTable from '../components/LeaderboardTable';
 import PaynowCheckoutModal from '../components/PaynowCheckoutModal';
+import LeagueAccessFields from '../components/LeagueAccessFields';
+
+const defaultJoinDeadline = (hoursFromNow = 24) => {
+  const date = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
+  date.setSeconds(0, 0);
+  const pad = (value) => String(value).padStart(2, '0');
+  const local = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return local;
+};
 
 const makeInviteCode = () => {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -174,6 +183,9 @@ export function CreateLeaguePage() {
     tieBreak: 'overall-rank',
     rulesAcknowledged: false,
     opponentEmail: '',
+    visibility: 'private',
+    joinDeadlineAt: defaultJoinDeadline(),
+    allowLateJoin: true,
   });
 
   const entry = Math.max(0, Number(form.entryAmount) || 0);
@@ -354,6 +366,10 @@ export function CreateLeaguePage() {
                   </Form.Select>
                 </Col>
 
+                <Col xs={12}>
+                  <LeagueAccessFields values={form} onChange={setField} />
+                </Col>
+
                 {form.competitionType === 'band-for-band' && (
                   <Col xs={12}>
                     <Form.Label>Friend email</Form.Label>
@@ -372,7 +388,10 @@ export function CreateLeaguePage() {
 
                 <Col xs={12}>
                   <Alert variant="light" className="small">
-                    This league is private. Share its code only with people you want to invite. The league remains a draft until your wallet or Paynow entry payment succeeds.
+                    {form.visibility === 'public'
+                      ? 'This league is public and will appear in Discover, but the invite code is still required to join.'
+                      : 'This league is private. Share its code only with people you want to invite.'}
+                    {' '}The league remains a draft until your wallet or Paynow entry payment succeeds.
                   </Alert>
                   <Form.Check
                     required
