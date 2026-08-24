@@ -189,6 +189,41 @@ export default function UserPublicProfileModal({
                   </span>
                 </div>
               </div>
+
+              {fpl.hasSnapshot && fpl.lineup?.length > 0 && (
+                <div className="public-player-squad mt-4">
+                  <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <h3 className="h6 mb-0">Squad · Gameweek {fpl.gameweek}</h3>
+                    <div className="small muted">
+                      Captain {fpl.captain || '—'}{fpl.viceCaptain ? ` · Vice ${fpl.viceCaptain}` : ''}
+                      {fpl.activeChip && fpl.activeChip !== 'None' ? ` · ${fpl.activeChip}` : ''}
+                    </div>
+                  </div>
+                  <div className="d-flex flex-wrap gap-2 mb-3">
+                    {fpl.lineup.filter((player) => player.starter).map((player) => (
+                      <div className="player-chip" key={player.elementId || player.name}>
+                        <div className="small muted">{player.position}{player.club ? ` · ${player.club}` : ''}</div>
+                        <strong>{player.name}</strong>
+                        <div className="small">
+                          {player.points} pts
+                          {player.multiplier > 1 ? ` · ×${player.multiplier}` : ''}
+                          {player.isCaptain ? ' · Captain' : player.isViceCaptain ? ' · Vice' : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="small muted mb-2">Bench</div>
+                  <div className="d-flex flex-wrap gap-2">
+                    {fpl.lineup.filter((player) => !player.starter).map((player) => (
+                      <div className="player-chip" key={player.elementId || player.name}>
+                        <div className="small muted">{player.position}{player.club ? ` · ${player.club}` : ''}</div>
+                        <strong>{player.name}</strong>
+                        <div className="small muted">{player.points} pts</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
           </>
         )}
