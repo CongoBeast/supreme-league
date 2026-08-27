@@ -14,12 +14,11 @@ import LeaderboardTable from '../components/LeaderboardTable';
 import PaynowCheckoutModal from '../components/PaynowCheckoutModal';
 import LeagueAccessFields from '../components/LeagueAccessFields';
 
-const defaultJoinDeadline = (hoursFromNow = 24) => {
-  const date = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
-  date.setSeconds(0, 0);
-  const pad = (value) => String(value).padStart(2, '0');
-  const local = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  return local;
+const toLocalDateTimeInput = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const pad = (part) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 const makeInviteCode = () => {
@@ -171,12 +170,15 @@ export function CreateLeaguePage() {
   const [error, setError] = useState('');
   const [createdLeague, setCreatedLeague] = useState(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [gameweekSchedule, setGameweekSchedule] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [scheduleError, setScheduleError] = useState('');
   const [form, setForm] = useState({
     name: '',
     description: '',
     competitionType: 'weekly',
-    startGameweek: 13,
-    endGameweek: 13,
+    startGameweek: '',
+    endGameweek: '',
     entryAmount: 2,
     maximumParticipants: 10,
     inviteCode: makeInviteCode(),
@@ -184,9 +186,46 @@ export function CreateLeaguePage() {
     rulesAcknowledged: false,
     opponentEmail: '',
     visibility: 'private',
-    joinDeadlineAt: defaultJoinDeadline(),
-    allowLateJoin: true,
+    joinDeadlineAt: '',
+    allowLateJoin: false,
   });
+
+  useEffect(() => {
+    let active = true;
+    setScheduleLoading(true);
+    setScheduleError('');
+    api('/api/fpl/gameweeks')
+      .then((data) => {
+        if (!active) return;
+        const gameweeks = Array.isArray(data?.gameweeks) ? data.gameweeks : [];
+        setGameweekSchedule(gameweeks);
+        const suggested = gameweeks.find((item) => Number(item.id) === Number(data?.suggestedStartGameweek))
+          || gameweeks.find((item) => item.deadlineAt && new Date(item.deadlineAt) > new Date());
+        if (!suggested) {
+          setScheduleError('FPL has not published a future gameweek deadline yet.');
+          return;
+        }
+        setForm((current) => ({
+          ...current,
+          startGameweek: Number(suggested.id),
+          endGameweek: Number(suggested.id),
+          joinDeadlineAt: toLocalDateTimeInput(suggested.deadlineAt),
+          allowLateJoin: false,
+        }));
+      })
+      .catch((requestError) => {
+        if (active) setScheduleError(requestError.message || 'Unable to load the official FPL gameweek schedule.');
+      })
+      .finally(() => {
+        if (active) setScheduleLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  const selectedStartGameweek = useMemo(
+    () => gameweekSchedule.find((item) => Number(item.id) === Number(form.startGameweek)) || null,
+    [gameweekSchedule, form.startGameweek]
+  );
 
   const entry = Math.max(0, Number(form.entryAmount) || 0);
   const max = form.competitionType === 'band-for-band'
@@ -200,6 +239,22 @@ export function CreateLeaguePage() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const setStartGameweek = (value) => {
+    const nextStart = Number(value);
+    const schedule = gameweekSchedule.find((item) => Number(item.id) === nextStart);
+    setForm((current) => {
+      const currentEnd = Number(current.endGameweek || 0);
+      const forceSingleWeek = ['weekly', 'band-for-band'].includes(current.competitionType);
+      return {
+        ...current,
+        startGameweek: nextStart,
+        endGameweek: forceSingleWeek || currentEnd < nextStart ? nextStart : current.endGameweek,
+        joinDeadlineAt: toLocalDateTimeInput(schedule?.deadlineAt),
+        allowLateJoin: false,
+      };
+    });
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -210,6 +265,7 @@ export function CreateLeaguePage() {
         body: {
           ...form,
           inviteCode: normalizeInviteCode(form.inviteCode),
+          joinDeadlineAt: form.joinDeadlineAt ? new Date(form.joinDeadlineAt).toISOString() : '',
         },
       });
       setCreatedLeague(data.league);
@@ -231,10 +287,12 @@ export function CreateLeaguePage() {
       <PageHeader
         eyebrow="Custom competitions"
         title="Create League"
-        description="Choose a unique invitation code, save the league and pay your own entry to activate it."
+        description="Choose a unique invitation code and gameweek range. Joining deadlines are loaded from the live FPL schedule, not estimated locally."
       />
 
       {error && <Alert variant="danger">{error}</Alert>}
+      {scheduleLoading && <Alert variant="info">Loading official gameweek deadlines from FPL…</Alert>}
+      {scheduleError && <Alert variant="danger">{scheduleError} League creation is disabled because the app will not guess FPL dates.</Alert>}
 
       <Row className="g-4">
         <Col xl={8}>
@@ -260,6 +318,8 @@ export function CreateLeaguePage() {
                         ...current,
                         competitionType: value,
                         maximumParticipants: value === 'band-for-band' ? 2 : current.maximumParticipants,
+                        endGameweek: ['weekly', 'band-for-band'].includes(value) ? current.startGameweek : current.endGameweek,
+                        allowLateJoin: false,
                       }));
                     }}
                   >
@@ -308,26 +368,41 @@ export function CreateLeaguePage() {
 
                 <Col md={4}>
                   <Form.Label>Start gameweek</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    max="38"
+                  <Form.Select
                     required
+                    disabled={scheduleLoading || Boolean(scheduleError)}
                     value={form.startGameweek}
-                    onChange={(event) => setField('startGameweek', event.target.value)}
-                  />
+                    onChange={(event) => setStartGameweek(event.target.value)}
+                  >
+                    <option value="">Select gameweek</option>
+                    {gameweekSchedule
+                      .filter((item) => item.deadlineAt && new Date(item.deadlineAt) > new Date())
+                      .map((item) => (
+                        <option value={item.id} key={item.id}>
+                          {item.name} · {new Date(item.deadlineAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </option>
+                      ))}
+                  </Form.Select>
+                  <Form.Text>
+                    {selectedStartGameweek?.deadlineAt
+                      ? `Official FPL deadline: ${new Date(selectedStartGameweek.deadlineAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`
+                      : 'Choose a future gameweek published by FPL.'}
+                  </Form.Text>
                 </Col>
 
                 <Col md={4}>
                   <Form.Label>End gameweek</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    max="38"
+                  <Form.Select
                     required
+                    disabled={scheduleLoading || Boolean(scheduleError) || ['weekly', 'band-for-band'].includes(form.competitionType)}
                     value={form.endGameweek}
-                    onChange={(event) => setField('endGameweek', event.target.value)}
-                  />
+                    onChange={(event) => setField('endGameweek', Number(event.target.value))}
+                  >
+                    <option value="">Select gameweek</option>
+                    {gameweekSchedule
+                      .filter((item) => Number(item.id) >= Number(form.startGameweek || 0))
+                      .map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
+                  </Form.Select>
                 </Col>
 
                 <Col md={4}>
@@ -367,7 +442,12 @@ export function CreateLeaguePage() {
                 </Col>
 
                 <Col xs={12}>
-                  <LeagueAccessFields values={form} onChange={setField} />
+                  <LeagueAccessFields
+                    values={form}
+                    onChange={setField}
+                    fplDeadlineAt={selectedStartGameweek?.deadlineAt || ''}
+                    lockLateJoin
+                  />
                 </Col>
 
                 {form.competitionType === 'band-for-band' && (
@@ -402,7 +482,7 @@ export function CreateLeaguePage() {
                 </Col>
 
                 <Col xs={12}>
-                  <Button type="submit" disabled={busy}>
+                  <Button type="submit" disabled={busy || scheduleLoading || Boolean(scheduleError) || !form.startGameweek || !form.endGameweek || !form.joinDeadlineAt}>
                     {busy ? 'Creating draft…' : `Create and pay ${moneyFromCents(entry * 100)}`}
                   </Button>
                 </Col>
@@ -711,8 +791,19 @@ export function LeagueDetailsPage() {
                 <strong>{league.createdAt ? new Date(league.createdAt).toLocaleDateString('en-GB') : '—'}</strong>
               </div>
               <div>
-                <div className="muted small">Closes / archives</div>
-                <strong>{league.expiresAt ? new Date(league.expiresAt).toLocaleString('en-GB') : 'Not scheduled'}</strong>
+                <div className="muted small">Join cutoff</div>
+                <strong>{league.joinDeadlineAt ? new Date(league.joinDeadlineAt).toLocaleString('en-GB') : 'Waiting for FPL'}</strong>
+              </div>
+              <div>
+                <div className="muted small">Competition end</div>
+                <strong>
+                  {league.fplFinishedAt
+                    ? new Date(league.fplFinishedAt).toLocaleString('en-GB')
+                    : `When FPL marks Gameweek ${league.endGameweek} finished`}
+                </strong>
+                {!league.fplFinishedAt && league.fplLastFixtureKickoffAt && (
+                  <div className="muted small">Last scheduled fixture starts {new Date(league.fplLastFixtureKickoffAt).toLocaleString('en-GB')}</div>
+                )}
               </div>
               <div>
                 <div className="muted small">Entry fee</div>
