@@ -675,7 +675,6 @@ export function LeagueDetailsPage() {
   const { leagueId } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [scoreBusy, setScoreBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -694,22 +693,7 @@ export function LeagueDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
 
-  const syncScores = async () => {
-    setScoreBusy(true);
-    setNotice('');
-    try {
-      const response = await api(`/api/leagues/${leagueId}/sync-scores`, {
-        method: 'POST',
-        body: {},
-      });
-      setData({ league: response.league, leaderboard: response.leaderboard });
-      setNotice(response.sync?.message || 'League standings refreshed from FPL data.');
-    } catch (requestError) {
-      setNotice(requestError.message);
-    } finally {
-      setScoreBusy(false);
-    }
-  };
+
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingScreen fullScreen={false} />;
@@ -747,7 +731,6 @@ export function LeagueDetailsPage() {
         actions={headerAction}
       />
 
-      {scoreBusy && <Alert variant="info">Fetching every paid member's FPL history and recalculating the league standings…</Alert>}
       {notice && <Alert variant={notice.toLowerCase().includes('failed') || notice.toLowerCase().includes('cannot') ? 'danger' : 'info'}>{notice}</Alert>}
       {league.canPayEntry && (
         <Alert variant="warning">
@@ -826,15 +809,10 @@ export function LeagueDetailsPage() {
                 <h2 className="h4 mb-1">Leaderboard</h2>
                 <div className="small muted">
                   {league.lastScoredAt
-                    ? `Last synced ${new Date(league.lastScoredAt).toLocaleString('en-GB')} through Gameweek ${league.scoreThroughGameweek || '—'}`
-                    : 'Scores have not yet been synced for this league.'}
+                    ? `Refreshed ${new Date(league.lastScoredAt).toLocaleString('en-GB')} through Gameweek ${league.scoreThroughGameweek || '—'}`
+                    : 'Scores refresh automatically from FPL when this page is opened.'}
                 </div>
               </div>
-              {(league.joined || league.createdByCurrentUser) && league.status !== 'draft' && (
-                <Button variant="outline-dark" onClick={syncScores} disabled={scoreBusy}>
-                  <RefreshCw size={16} /> {scoreBusy ? 'Refreshing…' : 'Refresh FPL scores'}
-                </Button>
-              )}
             </div>
             {data.leaderboard.length ? (
               <LeaderboardTable rows={data.leaderboard} />
