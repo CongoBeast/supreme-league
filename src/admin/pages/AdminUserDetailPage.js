@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, Form, Modal, Row, Table } from 'react-bootstrap';
-import { ShieldCheck, Trophy, UserRound, WalletCards } from 'lucide-react';
+import { Activity, Gift, ShieldCheck, Trophy, UserRound, WalletCards } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 import { adminApi, dateTime, humanize, money } from '../adminApi';
@@ -8,6 +8,7 @@ import { AdminEmpty, AdminError, AdminLoading } from '../components/AdminDataSta
 import AdminPageHeader from '../components/AdminPageHeader';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
+import FplSquadPitch from '../../components/FplSquadPitch';
 
 export default function AdminUserDetailPage() {
   const { id } = useParams();
@@ -26,6 +27,11 @@ export default function AdminUserDetailPage() {
   const [creditForm, setCreditForm] = useState({ amount: '', reason: '' });
   const [creditBusy, setCreditBusy] = useState(false);
   const [creditError, setCreditError] = useState('');
+
+  const [bonusOpen, setBonusOpen] = useState(false);
+  const [bonusForm, setBonusForm] = useState({ amount: '', reason: '' });
+  const [bonusBusy, setBonusBusy] = useState(false);
+  const [bonusError, setBonusError] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -132,6 +138,29 @@ export default function AdminUserDetailPage() {
     }
   };
 
+  const submitPerformanceBonus = async (event) => {
+    event.preventDefault();
+    setBonusBusy(true);
+    setBonusError('');
+    try {
+      await adminApi(`/users/${id}/performance-bonus`, {
+        method: 'POST',
+        body: {
+          amountCents: Math.round(Number(bonusForm.amount || 0) * 100),
+          reason: bonusForm.reason,
+        },
+      });
+      setBonusOpen(false);
+      setBonusForm({ amount: '', reason: '' });
+      setMessage('Performance bonus awarded, credited to the withdrawable wallet balance, and emailed to the member.');
+      await load();
+    } catch (requestError) {
+      setBonusError(requestError.message || 'The performance bonus could not be awarded.');
+    } finally {
+      setBonusBusy(false);
+    }
+  };
+
   if (loading) {
     return <AdminLoading message="Loading user information…" />;
   }
@@ -147,7 +176,7 @@ export default function AdminUserDetailPage() {
       <AdminPageHeader
         eyebrow="User management"
         title={data.user.fullName}
-        description="Review personal information, subscriptions, league activity and financial history."
+        description="Review personal information, fresh FPL team/rank data, subscriptions, league activity and financial history."
         backTo="/admin/users"
         backLabel="Back to users"
         actions={
@@ -233,9 +262,10 @@ export default function AdminUserDetailPage() {
                 <h2 className="admin-card-title">Wallet information</h2>
                 <div className="admin-card-subtitle">Current wallet balances and last balance activity.</div>
               </div>
-              <Button size="sm" variant="outline-primary" onClick={openCreditModal}>
-                Credit wallet
-              </Button>
+              <div className="d-flex gap-2 flex-wrap">
+                <Button size="sm" variant="primary" onClick={() => { setBonusError(''); setBonusForm({ amount: '', reason: '' }); setBonusOpen(true); }}><Gift size={15} /> Performance bonus</Button>
+                <Button size="sm" variant="outline-primary" onClick={openCreditModal}>Credit wallet</Button>
+              </div>
             </Card.Header>
             <Card.Body>
               <dl className="admin-detail-grid mb-0">
@@ -250,6 +280,24 @@ export default function AdminUserDetailPage() {
           </Card>
         </Col>
       </Row>
+
+      <Card className="admin-card mb-4">
+        <Card.Header className="d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div><h2 className="admin-card-title">Live FPL profile &amp; squad</h2><div className="admin-card-subtitle">Refreshed automatically from public FPL data when this admin page opens.</div></div>
+          <Activity size={22} />
+        </Card.Header>
+        <Card.Body>
+          {data.team?.snapshot ? <>
+            <Row className="g-3 mb-4">
+              <Col sm={6} lg={3}><div className="admin-detail-item"><dt>Gameweek</dt><dd>{data.team.snapshot.gameweek}</dd></div></Col>
+              <Col sm={6} lg={3}><div className="admin-detail-item"><dt>GW points</dt><dd>{data.team.snapshot.gameweekPoints}</dd></div></Col>
+              <Col sm={6} lg={3}><div className="admin-detail-item"><dt>Total points</dt><dd>{data.team.snapshot.totalPoints}</dd></div></Col>
+              <Col sm={6} lg={3}><div className="admin-detail-item"><dt>Overall rank</dt><dd>{data.team.snapshot.overallRank?.toLocaleString('en-GB') || '—'}</dd></div></Col>
+            </Row>
+            <FplSquadPitch lineup={data.team.snapshot.lineup || []} gameweek={data.team.snapshot.gameweek} compact />
+          </> : <AdminEmpty title={data.user.fplManagerId ? 'FPL squad not published yet' : 'No FPL manager linked'} message={data.team?.error || (data.user.fplManagerId ? 'The manager is linked, but FPL did not return a usable squad snapshot. Opening this page will retry automatically.' : 'Link a public FPL manager ID from the user account first.')} />}
+        </Card.Body>
+      </Card>
 
       <Card className="admin-card admin-table-card mb-4">
         <Card.Header>
@@ -328,7 +376,7 @@ export default function AdminUserDetailPage() {
                 <tr key={transaction._id}>
                   <td>{dateTime(transaction.createdAt)}</td>
                   <td>{transaction.reference}</td>
-                  <td>{humanize(transaction.type)}</td>
+                  <td>{transaction.metadata?.purpose === 'performance-bonus' ? 'Performance bonus' : humanize(transaction.type)}</td>
                   <td><StatusBadge value={transaction.status} /></td>
                   <td>{money(transaction.amountCents)}</td>
                 </tr>
@@ -388,6 +436,19 @@ export default function AdminUserDetailPage() {
               {cancelBusy ? 'Cancelling…' : 'Cancel subscription & refund'}
             </Button>
           </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal show={bonusOpen} onHide={() => !bonusBusy && setBonusOpen(false)} centered>
+        <Form onSubmit={submitPerformanceBonus}>
+          <Modal.Header closeButton><Modal.Title>Award performance bonus</Modal.Title></Modal.Header>
+          <Modal.Body>
+            {bonusError && <Alert variant="danger">{bonusError}</Alert>}
+            <p className="text-muted small">This creates a dedicated performance-bonus transaction, credits the user&apos;s available/withdrawable wallet balance, and emails the reward amount and reason to the member.</p>
+            <Form.Group className="mb-3"><Form.Label>Bonus amount (USD)</Form.Label><Form.Control type="number" min="0.01" step="0.01" value={bonusForm.amount} onChange={(event) => setBonusForm((current) => ({ ...current, amount: event.target.value }))} required /></Form.Group>
+            <Form.Group><Form.Label>Performance / reward reason</Form.Label><Form.Control as="textarea" rows={3} placeholder="Example: Highest September improvement bonus" value={bonusForm.reason} onChange={(event) => setBonusForm((current) => ({ ...current, reason: event.target.value }))} required /><Form.Text className="text-muted">This reason is included in the reward email and transaction audit.</Form.Text></Form.Group>
+          </Modal.Body>
+          <Modal.Footer><Button variant="outline-secondary" onClick={() => setBonusOpen(false)} disabled={bonusBusy}>Close</Button><Button type="submit" disabled={bonusBusy}>{bonusBusy ? 'Awarding…' : 'Award bonus & email user'}</Button></Modal.Footer>
         </Form>
       </Modal>
 
