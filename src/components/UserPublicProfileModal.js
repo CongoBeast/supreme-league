@@ -11,6 +11,7 @@ import {
 import { api } from '../services/api';
 import CurrencyAmount from './CurrencyAmount';
 import ProfileAvatar from './ProfileAvatar';
+import FplSquadPitch from './FplSquadPitch';
 import './user-public-profile-modal.css';
 
 const number = (value) => (
@@ -160,7 +161,7 @@ export default function UserPublicProfileModal({
                   icon={BarChart3}
                   label="FPL overall rank"
                   value={number(fpl.overallRank)}
-                  detail={fpl.hasSnapshot ? 'Latest synchronised ranking' : 'Team data has not been synchronised'}
+                  detail={fpl.hasSnapshot ? 'Refreshed from public FPL data' : 'Team data is not available yet'}
                 />
                 <Metric
                   icon={Activity}
@@ -182,9 +183,9 @@ export default function UserPublicProfileModal({
                   <strong>{fpl.hasSnapshot ? 'Latest FPL snapshot' : 'FPL statistics unavailable'}</strong>
                   <span>
                     {fpl.hasSnapshot
-                      ? `Last synchronised ${date(fpl.lastSyncedAt, true)}`
+                      ? `Refreshed ${date(fpl.lastSyncedAt, true)}`
                       : fpl.linked
-                        ? 'The manager ID is linked, but no successful team snapshot is stored yet.'
+                        ? 'The manager ID is linked, but FPL has not returned a usable squad snapshot yet.'
                         : 'This member has not linked an FPL manager ID.'}
                   </span>
                 </div>
@@ -199,29 +200,7 @@ export default function UserPublicProfileModal({
                       {fpl.activeChip && fpl.activeChip !== 'None' ? ` · ${fpl.activeChip}` : ''}
                     </div>
                   </div>
-                  <div className="d-flex flex-wrap gap-2 mb-3">
-                    {fpl.lineup.filter((player) => player.starter).map((player) => (
-                      <div className="player-chip" key={player.elementId || player.name}>
-                        <div className="small muted">{player.position}{player.club ? ` · ${player.club}` : ''}</div>
-                        <strong>{player.name}</strong>
-                        <div className="small">
-                          {player.points} pts
-                          {player.multiplier > 1 ? ` · ×${player.multiplier}` : ''}
-                          {player.isCaptain ? ' · Captain' : player.isViceCaptain ? ' · Vice' : ''}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="small muted mb-2">Bench</div>
-                  <div className="d-flex flex-wrap gap-2">
-                    {fpl.lineup.filter((player) => !player.starter).map((player) => (
-                      <div className="player-chip" key={player.elementId || player.name}>
-                        <div className="small muted">{player.position}{player.club ? ` · ${player.club}` : ''}</div>
-                        <strong>{player.name}</strong>
-                        <div className="small muted">{player.points} pts</div>
-                      </div>
-                    ))}
-                  </div>
+                  <FplSquadPitch lineup={fpl.lineup || []} gameweek={fpl.gameweek} compact />
                 </div>
               )}
             </section>
