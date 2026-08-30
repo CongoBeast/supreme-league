@@ -679,17 +679,25 @@ export function LeagueDetailsPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const load = async () => {
-    setError('');
+  const load = async ({ refresh = false, background = false } = {}) => {
+    if (!background) setError('');
     try {
-      setData(await api(`/api/leagues/${leagueId}`));
+      const response = await api(`/api/leagues/${leagueId}${refresh ? '?refresh=1' : ''}`);
+      setData(response);
+      return response;
     } catch (requestError) {
-      setError(requestError.message);
+      if (!background) setError(requestError.message);
+      return null;
     }
   };
 
   useEffect(() => {
-    load();
+    let active = true;
+    (async () => {
+      const initial = await load();
+      if (active && initial) load({ refresh: true, background: true });
+    })();
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
 

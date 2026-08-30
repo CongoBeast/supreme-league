@@ -50,20 +50,45 @@ export default function SupremeLeaguesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkoutItem, setCheckoutItem] = useState(null);
-  const load = () => { setLoading(true); setError(''); api('/api/supreme-leagues').then((data) => setItems(Array.isArray(data) ? data : [])).catch((requestError) => setError(requestError.message || 'Unable to load Supreme competitions.')).finally(() => setLoading(false)); };
-  useEffect(load, []);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = async ({ refresh = false, background = false } = {}) => {
+    if (!background) { setLoading(true); setError(''); }
+    else setRefreshing(true);
+    try {
+      const data = await api(`/api/supreme-leagues${refresh ? '?refresh=1' : ''}`);
+      setItems(Array.isArray(data) ? data : []);
+      return data;
+    } catch (requestError) {
+      if (!background) setError(requestError.message || 'Unable to load Supreme competitions.');
+      return null;
+    } finally {
+      if (!background) setLoading(false);
+      else setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const initial = await load();
+      if (active && initial) load({ refresh: true, background: true });
+    })();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const active = useMemo(() => items.filter((item) => item.settlementStatus !== 'settled'), [items]);
   const past = useMemo(() => items.filter((item) => item.settlementStatus === 'settled').reverse(), [items]);
   const clash = useMemo(() => active.filter((item) => item.cadence === 'clash-captains'), [active]);
   const standard = useMemo(() => active.filter((item) => item.cadence !== 'clash-captains'), [active]);
 
-  if (loading) return <div className="py-5 text-center"><Spinner className="me-2" /> Loading and reconciling future Supreme competitions…</div>;
+  if (loading) return <div className="py-5 text-center"><Spinner className="me-2" /> Loading Supreme competitions…</div>;
   if (error) return <Alert variant="danger">{error}<div className="mt-3"><Button variant="outline-danger" onClick={load}>Retry</Button></div></Alert>;
   const grid = (list, emptyText) => list.length ? <Row className="g-4">{list.map((item) => <Col lg={6} key={item._id}><CompetitionCard item={item} onJoin={setCheckoutItem} /></Col>)}</Row> : <Alert variant="light" className="border">{emptyText}</Alert>;
 
   return <div>
-    <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4"><div><div className="sfl-kicker"><Trophy size={16} /> Supreme competitions</div><h1 className="mt-2 mb-2">Supreme Leagues</h1><p className="text-muted mb-0">Competitions are now provisioned ahead from the real FPL schedule so you can enter and advertise them before the final 24–48 hours.</p></div></div>
+    <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4"><div><div className="sfl-kicker"><Trophy size={16} /> Supreme competitions</div><h1 className="mt-2 mb-2">Supreme Leagues</h1><p className="text-muted mb-0">The saved competition list appears immediately. FPL scheduling, enrollment and standings refresh automatically in the background.</p></div>{refreshing && <Badge bg="light" text="dark" className="border px-3 py-2">Updating from FPL…</Badge>}</div>
     <Alert variant="light" className="border mb-4">Weekly: <strong>$1 one-off or eligible subscription</strong> · guaranteed <strong>$10 prize</strong>. Entry closes at FPL <code>deadline_time</code>; football completion is verified from the event plus all fixtures; payout normally waits for <code>data_checked</code>.</Alert>
 
     <Tabs defaultActiveKey={clash.length ? 'clash' : 'active'} className="mb-4">
@@ -72,6 +97,6 @@ export default function SupremeLeaguesPage() {
       <Tab eventKey="past" title={<span><History size={15} className="me-1" /> Results ({past.length})</span>}>{grid(past, 'No settled Supreme competition outcomes are available yet.')}</Tab>
     </Tabs>
 
-    <PaynowCheckoutModal show={Boolean(checkoutItem)} onHide={() => setCheckoutItem(null)} purpose="league-entry" leagueId={checkoutItem?.leagueId || ''} amountCents={checkoutItem?.entryFeeCents || 0} title={`Join ${checkoutItem?.league?.name || 'weekly Supreme league'}`} onCompleted={() => { setCheckoutItem(null); load(); }} />
+    <PaynowCheckoutModal show={Boolean(checkoutItem)} onHide={() => setCheckoutItem(null)} purpose="league-entry" leagueId={checkoutItem?.leagueId || ''} amountCents={checkoutItem?.entryFeeCents || 0} title={`Join ${checkoutItem?.league?.name || 'weekly Supreme league'}`} onCompleted={() => { setCheckoutItem(null); load(); load({ refresh: true, background: true }); }} />
   </div>;
 }

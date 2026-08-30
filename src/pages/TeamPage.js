@@ -19,11 +19,30 @@ export default function TeamPage() {
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
 
-  const load = async () => {
-    setError('');
-    try { setData(await api('/api/team')); } catch (requestError) { setError(requestError.message); }
+  const load = async ({ refresh = false, background = false } = {}) => {
+    if (!background) setError('');
+    try {
+      const response = await api(`/api/team${refresh ? '?refresh=1' : ''}`);
+      setData((current) => ({
+        ...current,
+        ...response,
+        history: response.history?.length ? response.history : (current?.history || []),
+      }));
+      return response;
+    } catch (requestError) {
+      if (!background) setError(requestError.message);
+      return null;
+    }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const initial = await load();
+      if (active && initial?.linked) load({ refresh: true, background: true });
+    })();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleManagerInput = (value) => {
     setManagerInput(value);
@@ -40,7 +59,7 @@ export default function TeamPage() {
       await api('/api/profile/link-fantasy-team', { method: 'POST', body: { managerId } });
       setNotice('FPL account linked. Supreme will now refresh your public team automatically.');
       setManagerId(''); setManagerInput(''); setManagerInputError('');
-      await load();
+      await load({ refresh: true });
     } catch (requestError) { setNotice(requestError.message); } finally { setBusy(''); }
   };
 
