@@ -5,6 +5,13 @@ import CurrencyAmount from './CurrencyAmount';
 import ProfileAvatar from './ProfileAvatar';
 import UserPublicProfileModal from './UserPublicProfileModal';
 
+function transferLabel(row) {
+  const transfers = Number(row.transfers || 0);
+  const cost = Number(row.transferCost || 0);
+  if (!transfers) return '0';
+  return cost > 0 ? `${transfers} (-${cost})` : `${transfers}`;
+}
+
 export default function LeaderboardTable({ rows = [], earnings = false }) {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
@@ -32,7 +39,10 @@ export default function LeaderboardTable({ rows = [], earnings = false }) {
                 </>
               ) : (
                 <>
-                  <th className="text-end">Score</th>
+                  <th className="text-end">Points</th>
+                  <th className="text-end">Players left</th>
+                  <th className="text-end">Chip</th>
+                  <th className="text-end">Transfers</th>
                   <th className="text-end">Prize</th>
                 </>
               )}
@@ -55,14 +65,24 @@ export default function LeaderboardTable({ rows = [], earnings = false }) {
                         aria-label={`View ${row.name}'s player profile`}
                       >
                         <ProfileAvatar src={row.profilePicture} name={row.name} size="sm" />
-                        <div className="fw-semibold text-truncate">
-                          {row.name}{row.isCurrentUser ? ' (You)' : ''}
+                        <div className="text-start">
+                          <div className="fw-semibold text-truncate">
+                            {row.name}{row.isCurrentUser ? ' (You)' : ''}
+                          </div>
+                          {!earnings && (row.teamName || row.managerName) && (
+                            <div className="small muted text-truncate">{row.teamName || row.managerName}</div>
+                          )}
                         </div>
                       </button>
                     ) : (
                       <div className="d-flex align-items-center gap-2">
                         <ProfileAvatar src={row.profilePicture} name={row.name} size="sm" />
-                        <div className="fw-semibold">{row.name}</div>
+                        <div>
+                          <div className="fw-semibold">{row.name}</div>
+                          {!earnings && (row.teamName || row.managerName) && (
+                            <div className="small muted">{row.teamName || row.managerName}</div>
+                          )}
+                        </div>
                       </div>
                     )}
                     {row.userId && (
@@ -86,6 +106,19 @@ export default function LeaderboardTable({ rows = [], earnings = false }) {
                 ) : (
                   <>
                     <td className="text-end fw-bold">{row.score ?? 0}</td>
+                    <td className="text-end">
+                      <div className="fw-semibold">{row.playersRemainingLabel || '—'}</div>
+                      {row.liveGameweek ? <div className="small muted">GW {row.liveGameweek}</div> : null}
+                    </td>
+                    <td className="text-end">
+                      <span className={`badge ${row.chipUsed ? 'text-bg-dark' : 'text-bg-light border'}`}>
+                        {row.activeChipLabel || 'No chip'}
+                      </span>
+                    </td>
+                    <td className="text-end">
+                      <div className="fw-semibold">{transferLabel(row)}</div>
+                      {Number(row.transferCost || 0) > 0 ? <div className="small muted">cost hit applied</div> : null}
+                    </td>
                     <td className="text-end"><CurrencyAmount cents={row.prizeCents || 0} /></td>
                   </>
                 )}
