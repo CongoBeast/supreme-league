@@ -20,12 +20,32 @@ export default function AdminLeagueDetailPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [manualReason, setManualReason] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = async () => {
-    setLoading(true); setError('');
-    try { setData(await adminApi(`/leagues/${id}`)); } catch (requestError) { setError(requestError.message || 'The league could not be loaded.'); } finally { setLoading(false); }
+  const load = async ({ refresh = false, background = false } = {}) => {
+    if (!background) { setLoading(true); setError(''); }
+    else setRefreshing(true);
+    try {
+      const response = await adminApi(`/leagues/${id}${refresh ? '?refresh=1' : ''}`);
+      setData(response);
+      return response;
+    } catch (requestError) {
+      if (!background) setError(requestError.message || 'The league could not be loaded.');
+      return null;
+    } finally {
+      if (!background) setLoading(false);
+      else setRefreshing(false);
+    }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const initial = await load();
+      if (active && initial) load({ refresh: true, background: true });
+    })();
+    return () => { active = false; };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [id]);
 
   const runAction = async (path, body, successMessage) => {
     setSaving(true); setError(''); setMessage('');
@@ -63,7 +83,7 @@ export default function AdminLeagueDetailPage() {
     if (ok) setManualReason('');
   };
 
-  if (loading) return <AdminLoading message="Refreshing FPL scores and league information…" />;
+  if (loading) return <AdminLoading message="Loading league information…" />;
   if (error && !data) return <AdminError message={error} onRetry={load} />;
 
   const league = data.league;
@@ -72,7 +92,7 @@ export default function AdminLeagueDetailPage() {
   const verified = settlement.verified || {};
 
   return <>
-    <AdminPageHeader eyebrow="League management" title={league.name} description={`${league.description || 'No league description has been provided.'} Scores refresh automatically whenever this page opens.`} backTo="/admin/leagues" backLabel="Back to leagues" actions={<Form.Select aria-label="League status" value={league.status} onChange={(event) => updateStatus(event.target.value)} disabled={saving || league.status === 'settled'} style={{ minWidth: 220 }}><option value="settled" disabled>Settled (use settlement controls)</option>{statuses.map((status) => <option key={status} value={status}>{humanize(status)}</option>)}</Form.Select>} />
+    <AdminPageHeader eyebrow="League management" title={league.name} description={`${league.description || 'No league description has been provided.'} Cached data loads first; FPL diagnostics refresh automatically in the background.${refreshing ? ' Updating now…' : ''}`} backTo="/admin/leagues" backLabel="Back to leagues" actions={<Form.Select aria-label="League status" value={league.status} onChange={(event) => updateStatus(event.target.value)} disabled={saving || league.status === 'settled'} style={{ minWidth: 220 }}><option value="settled" disabled>Settled (use settlement controls)</option>{statuses.map((status) => <option key={status} value={status}>{humanize(status)}</option>)}</Form.Select>} />
     {error && <AdminError message={error} />}
     {message && <Alert variant="success">{message}</Alert>}
 

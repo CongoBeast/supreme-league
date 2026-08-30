@@ -17,6 +17,7 @@ export default function AdminUserDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelForm, setCancelForm] = useState({ refundAmount: '', reason: '' });
@@ -33,20 +34,29 @@ export default function AdminUserDetailPage() {
   const [bonusBusy, setBonusBusy] = useState(false);
   const [bonusError, setBonusError] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
+  const load = async ({ refresh = false, background = false } = {}) => {
+    if (!background) { setLoading(true); setError(''); }
+    else setRefreshing(true);
     try {
-      setData(await adminApi(`/users/${id}`));
+      const response = await adminApi(`/users/${id}${refresh ? '?refresh=1' : ''}`);
+      setData(response);
+      return response;
     } catch (requestError) {
-      setError(requestError.message || 'The user account could not be loaded.');
+      if (!background) setError(requestError.message || 'The user account could not be loaded.');
+      return null;
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
+      else setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    load();
+    let active = true;
+    (async () => {
+      const initial = await load();
+      if (active && initial?.user?.fplManagerId) load({ refresh: true, background: true });
+    })();
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
