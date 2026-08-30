@@ -61,9 +61,14 @@ export default function UserPublicProfileModal({
     try {
       const response = await api(`/api/users/${encodeURIComponent(userId)}/public-profile`);
       setProfile(response.profile);
+      setLoading(false);
+      if (response.profile?.fpl?.linked) {
+        api(`/api/users/${encodeURIComponent(userId)}/public-profile?refresh=1`)
+          .then((refreshed) => setProfile(refreshed.profile))
+          .catch(() => null);
+      }
     } catch (requestError) {
       setError(requestError.message || 'The player profile could not be loaded.');
-    } finally {
       setLoading(false);
     }
   }, [userId]);
