@@ -29,9 +29,9 @@ function CompetitionBoard({ board }) {
         </span>
       </div>
       <LeaderboardShareCard
+        leagueId={board.leagueId}
         title={board.leagueName || board.name}
-        subtitle={board.scoreThroughGameweek ? `Scored through Gameweek ${board.scoreThroughGameweek}` : 'Awaiting first score sync'}
-        rows={board.rows}
+        disabled={!board.rows.length}
       />
       <LeaderboardTable rows={board.rows} />
     </>

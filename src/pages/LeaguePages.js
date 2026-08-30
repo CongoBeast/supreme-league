@@ -840,9 +840,9 @@ export function LeagueDetailsPage() {
             {data.leaderboard.length ? (
               <>
                 <LeaderboardShareCard
+                  leagueId={league.id}
                   title={league.name}
-                  subtitle={league.scoreThroughGameweek ? `Scored through Gameweek ${league.scoreThroughGameweek}` : 'Awaiting first score sync'}
-                  rows={data.leaderboard}
+                  disabled={!data.leaderboard.length}
                 />
                 <LeaderboardTable rows={data.leaderboard} />
               </>
