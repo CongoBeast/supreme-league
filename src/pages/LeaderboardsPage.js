@@ -22,17 +22,10 @@ function CompetitionBoard({ board }) {
 
   return (
     <>
-      <div className="d-flex flex-wrap justify-content-between gap-2 small muted mb-3">
-        <span>{board.leagueName || board.name}</span>
-        <span>
-          {board.scoreThroughGameweek ? `Scored through Gameweek ${board.scoreThroughGameweek}` : 'Awaiting first score sync'}
-        </span>
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div className="small muted"><div>{board.leagueName || board.name}</div><div>{board.scoreThroughGameweek ? `Scored through Gameweek ${board.scoreThroughGameweek}` : 'Awaiting first score sync'}</div></div>
+        <LeaderboardShareCard leagueId={board.leagueId} title={board.leagueName || board.name} disabled={!board.rows.length} />
       </div>
-      <LeaderboardShareCard
-        leagueId={board.leagueId}
-        title={board.leagueName || board.name}
-        disabled={!board.rows.length}
-      />
       <LeaderboardTable rows={board.rows} />
     </>
   );
@@ -42,16 +35,27 @@ export default function LeaderboardsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
-  const load = async () => {
-    setError('');
+  const load = async ({ refresh = false, background = false } = {}) => {
+    if (!background) setError('');
     try {
-      setData(await api('/api/leaderboards'));
+      const response = await api(`/api/leaderboards${refresh ? '?refresh=1' : ''}`);
+      setData(response);
+      return response;
     } catch (requestError) {
-      setError(requestError.message);
+      if (!background) setError(requestError.message);
+      return null;
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const initial = await load();
+      if (active && initial) load({ refresh: true, background: true });
+    })();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingScreen fullScreen={false} label="Loading leaderboards" />;
@@ -61,7 +65,7 @@ export default function LeaderboardsPage() {
       <PageHeader
         eyebrow="Rankings"
         title="Leaderboards"
-        description="Competition standings use qualifying paid entries and official score records. Wins and prize earnings appear only after completed settlement transactions."
+        description="Saved standings appear immediately; FPL score refresh runs automatically after the page is visible. Wins and prize earnings appear only after completed settlement transactions."
       />
       <Alert variant="light" className="border">
         <Trophy size={18} className="me-2" />

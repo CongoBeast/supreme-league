@@ -17,6 +17,35 @@ function competitionStatus(item) {
   return { label: 'Live', bg: 'secondary' };
 }
 
+function supremeDeadline(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : Number.MAX_SAFE_INTEGER;
+}
+
+function sortSupremeItems(list = []) {
+  return [...list].sort((a, b) => {
+    if (Boolean(a.joinOpen) !== Boolean(b.joinOpen)) return a.joinOpen ? -1 : 1;
+    if (a.joinOpen && b.joinOpen) {
+      const deadlineDelta = supremeDeadline(a.joinDeadlineAt) - supremeDeadline(b.joinDeadlineAt);
+      if (deadlineDelta) return deadlineDelta;
+      return Number(a.startGameweek || 99) - Number(b.startGameweek || 99);
+    }
+    if (Boolean(a.joined) !== Boolean(b.joined)) return a.joined ? -1 : 1;
+    return Number(a.startGameweek || 0) - Number(b.startGameweek || 0);
+  });
+}
+
+function cadenceLabel(value) {
+  if (value === 'all') return 'All';
+  if (value === 'joinable') return 'Join now';
+  if (value === 'clash-captains') return 'Clash';
+  return String(value || '').replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function SupremeBreadcrumbs() {
+  return <nav aria-label="breadcrumb" className="mb-3"><ol className="breadcrumb small mb-0"><li className="breadcrumb-item"><Link to="/app/dashboard">Dashboard</Link></li><li className="breadcrumb-item"><Link to="/app/leagues/discover">Leagues</Link></li><li className="breadcrumb-item active" aria-current="page">Supreme Leagues</li></ol></nav>;
+}
+
 function CompetitionCard({ item, onJoin }) {
   const league = item.league || {};
   const entry = item.myEntry;
@@ -51,6 +80,7 @@ export default function SupremeLeaguesPage() {
   const [error, setError] = useState('');
   const [checkoutItem, setCheckoutItem] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState('all');
 
   const load = async ({ refresh = false, background = false } = {}) => {
     if (!background) { setLoading(true); setError(''); }
@@ -78,20 +108,28 @@ export default function SupremeLeaguesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const active = useMemo(() => items.filter((item) => item.settlementStatus !== 'settled'), [items]);
-  const past = useMemo(() => items.filter((item) => item.settlementStatus === 'settled').reverse(), [items]);
-  const clash = useMemo(() => active.filter((item) => item.cadence === 'clash-captains'), [active]);
-  const standard = useMemo(() => active.filter((item) => item.cadence !== 'clash-captains'), [active]);
+  const active = useMemo(() => sortSupremeItems(items.filter((item) => item.settlementStatus !== 'settled')), [items]);
+  const past = useMemo(() => [...items.filter((item) => item.settlementStatus === 'settled')].sort((a, b) => Number(b.startGameweek || 0) - Number(a.startGameweek || 0)), [items]);
+  const filterOptions = useMemo(() => ['all', 'joinable', ...new Set(active.map((item) => item.cadence).filter(Boolean))], [active]);
+  const filteredActive = useMemo(() => active.filter((item) => filter === 'all' || (filter === 'joinable' ? item.joinOpen : item.cadence === filter)), [active, filter]);
+  const nextJoinable = useMemo(() => active.find((item) => item.joinOpen) || null, [active]);
+  const clash = useMemo(() => filteredActive.filter((item) => item.cadence === 'clash-captains'), [filteredActive]);
+  const standard = useMemo(() => filteredActive.filter((item) => item.cadence !== 'clash-captains'), [filteredActive]);
 
   if (loading) return <div className="py-5 text-center"><Spinner className="me-2" /> Loading Supreme competitions…</div>;
   if (error) return <Alert variant="danger">{error}<div className="mt-3"><Button variant="outline-danger" onClick={load}>Retry</Button></div></Alert>;
   const grid = (list, emptyText) => list.length ? <Row className="g-4">{list.map((item) => <Col lg={6} key={item._id}><CompetitionCard item={item} onJoin={setCheckoutItem} /></Col>)}</Row> : <Alert variant="light" className="border">{emptyText}</Alert>;
 
   return <div>
-    <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4"><div><div className="sfl-kicker"><Trophy size={16} /> Supreme competitions</div><h1 className="mt-2 mb-2">Supreme Leagues</h1><p className="text-muted mb-0">The saved competition list appears immediately. FPL scheduling, enrollment and standings refresh automatically in the background.</p></div>{refreshing && <Badge bg="light" text="dark" className="border px-3 py-2">Updating from FPL…</Badge>}</div>
+    <SupremeBreadcrumbs />
+    <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4"><div><div className="sfl-kicker"><Trophy size={16} /> Supreme competitions</div><h1 className="mt-2 mb-2">Supreme Leagues</h1><p className="text-muted mb-0">The nearest joinable competition is always shown first. Use the live filters to narrow the competitions already provisioned from FPL.</p></div>{refreshing && <Badge bg="light" text="dark" className="border px-3 py-2">Updating from FPL…</Badge>}</div>
     <Alert variant="light" className="border mb-4">Weekly: <strong>$1 one-off or eligible subscription</strong> · guaranteed <strong>$10 prize</strong>. Entry closes at FPL <code>deadline_time</code>; football completion is verified from the event plus all fixtures; payout normally waits for <code>data_checked</code>.</Alert>
 
-    <Tabs defaultActiveKey={clash.length ? 'clash' : 'active'} className="mb-4">
+    {nextJoinable && <Alert variant="primary" className="border-0 shadow-sm mb-4"><div className="d-flex flex-wrap justify-content-between align-items-center gap-3"><div><div className="small text-uppercase fw-semibold mb-1">Next Supreme competition to join</div><div className="h5 mb-1">{nextJoinable.league?.name || nextJoinable.periodLabel}</div><div className="small">Gameweek {nextJoinable.startGameweek}{nextJoinable.endGameweek !== nextJoinable.startGameweek ? `–${nextJoinable.endGameweek}` : ''} · closes {formatDateTime(nextJoinable.joinDeadlineAt)}</div></div><Button as={Link} to={`/app/leagues/${nextJoinable.leagueId}`} variant="dark">View & join</Button></div></Alert>}
+
+    <div className="d-flex flex-wrap gap-2 mb-4">{filterOptions.map((value) => <Button key={value} size="sm" variant={filter === value ? 'dark' : 'outline-dark'} onClick={() => setFilter(value)}>{cadenceLabel(value)}</Button>)}</div>
+
+    <Tabs key={filter} defaultActiveKey={clash.length ? 'clash' : 'active'} className="mb-4">
       {clash.length > 0 && <Tab eventKey="clash" title={`Clash of the Captains (${clash.length})`}>{grid(clash, 'No September Clash competitions are currently scheduled.')}</Tab>}
       <Tab eventKey="active" title={`Upcoming & active (${standard.length})`}>{grid(standard, 'There are no open or active Supreme competitions.')}</Tab>
       <Tab eventKey="past" title={<span><History size={15} className="me-1" /> Results ({past.length})</span>}>{grid(past, 'No settled Supreme competition outcomes are available yet.')}</Tab>

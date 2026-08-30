@@ -37,6 +37,45 @@ const normalizeInviteCode = (value = '') => String(value)
   .replace(/-+/g, '-')
   .replace(/^-|-$/g, '');
 
+function LeagueBreadcrumbs({ current, parentLabel = 'Leagues', parentTo = '/app/leagues/discover' }) {
+  return (
+    <nav aria-label="breadcrumb" className="mb-3">
+      <ol className="breadcrumb small mb-0">
+        <li className="breadcrumb-item"><Link to="/app/dashboard">Dashboard</Link></li>
+        <li className="breadcrumb-item"><Link to={parentTo}>{parentLabel}</Link></li>
+        <li className="breadcrumb-item active" aria-current="page">{current}</li>
+      </ol>
+    </nav>
+  );
+}
+
+function deadlineTime(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : Number.MAX_SAFE_INTEGER;
+}
+
+function sortLeagueCards(leagues = []) {
+  return [...leagues].sort((a, b) => {
+    if (Boolean(a.joinOpen) !== Boolean(b.joinOpen)) return a.joinOpen ? -1 : 1;
+    if (a.joinOpen && b.joinOpen) {
+      const deadlineDelta = deadlineTime(a.joinDeadlineAt) - deadlineTime(b.joinDeadlineAt);
+      if (deadlineDelta) return deadlineDelta;
+      const gwDelta = Number(a.startGameweek || 99) - Number(b.startGameweek || 99);
+      if (gwDelta) return gwDelta;
+    }
+    const aLive = ['live', 'awaiting-review'].includes(a.status);
+    const bLive = ['live', 'awaiting-review'].includes(b.status);
+    if (aLive !== bLive) return aLive ? -1 : 1;
+    return Number(a.startGameweek || 0) - Number(b.startGameweek || 0);
+  });
+}
+
+function filterLabel(value) {
+  if (value === 'joinable') return 'Join now';
+  if (value === 'head-to-head') return 'Head to head';
+  return String(value).replace(/-/g, ' ');
+}
+
 async function copyText(value) {
   if (!value) return false;
   try {
@@ -66,78 +105,76 @@ function LeagueGrid({ scope, title, description, discover = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope]);
 
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    return data.leagues.filter((league) => {
-      if (filter === 'all') return true;
-      if (filter === 'active') return !league.isPast && ['draft', 'open', 'upcoming', 'live', 'full', 'awaiting-review'].includes(league.status);
-      if (filter === 'past') return league.isPast;
-      if (filter === 'custom') return league.customLeague;
-      if (filter === 'supreme') return league.officialSupremeLeague;
-      if (filter === 'head-to-head') return league.competitionType === 'band-for-band';
-      return league.status === filter || league.competitionType === filter || league.cadence === filter;
-    });
-  }, [data, filter]);
+  const sortedLeagues = useMemo(() => sortLeagueCards(data?.leagues || []), [data]);
+  const filters = useMemo(() => {
+    if (!data) return ['all'];
+    const dynamic = new Set();
+    for (const league of data.leagues || []) {
+      const cadence = league.cadence || league.competitionType;
+      if (cadence && !['custom', 'band-for-band'].includes(cadence)) dynamic.add(cadence);
+    }
+    if (discover) return ['all', 'joinable', ...dynamic];
+    return ['all', 'active', 'past', 'custom', 'supreme', 'head-to-head', ...dynamic];
+  }, [data, discover]);
+
+  const filtered = useMemo(() => sortedLeagues.filter((league) => {
+    if (filter === 'all') return true;
+    if (filter === 'joinable') return Boolean(league.joinOpen);
+    if (filter === 'active') return !league.isPast && ['draft', 'open', 'upcoming', 'live', 'full', 'awaiting-review'].includes(league.status);
+    if (filter === 'past') return league.isPast;
+    if (filter === 'custom') return league.customLeague;
+    if (filter === 'supreme') return league.officialSupremeLeague;
+    if (filter === 'head-to-head') return league.competitionType === 'band-for-band';
+    return league.status === filter || league.competitionType === filter || league.cadence === filter;
+  }), [sortedLeagues, filter]);
+
+  const nextJoinable = discover ? sortedLeagues.find((league) => league.joinOpen) : null;
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingScreen fullScreen={false} />;
 
-  const filters = discover
-    ? ['all', 'weekly', 'bi-weekly', 'monthly', 'half-season', 'season', 'head-to-head']
-    : ['all', 'active', 'past', 'custom', 'supreme', 'head-to-head'];
-
   return (
     <>
+      <LeagueBreadcrumbs current={title} />
       <PageHeader
         eyebrow="Competitions"
         title={title}
         description={description}
         actions={(
           <div className="d-flex flex-wrap gap-2">
-            <Button as={Link} to="/app/leagues/join" variant="outline-dark">
-              <KeyRound size={16} /> Join with code
-            </Button>
-            <Button as={Link} to="/app/leagues/create">
-              <PlusCircle size={16} /> Create League
-            </Button>
+            <Button as={Link} to="/app/leagues/join" variant="outline-dark"><KeyRound size={16} /> Join with code</Button>
+            <Button as={Link} to="/app/leagues/create"><PlusCircle size={16} /> Create League</Button>
           </div>
         )}
       />
 
+      {nextJoinable && (
+        <Alert variant="primary" className="border-0 shadow-sm mb-4">
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+              <div className="small text-uppercase fw-semibold mb-1">Next competition to join</div>
+              <div className="h5 mb-1">{nextJoinable.name}</div>
+              <div className="small">Gameweek {nextJoinable.startGameweek}{nextJoinable.endGameweek !== nextJoinable.startGameweek ? `–${nextJoinable.endGameweek}` : ''} · entry closes {nextJoinable.joinDeadlineAt ? new Date(nextJoinable.joinDeadlineAt).toLocaleString('en-GB') : 'at the official FPL deadline'}</div>
+            </div>
+            <Button as={Link} to={`/app/leagues/${nextJoinable.id}`} variant="dark">View & join</Button>
+          </div>
+        </Alert>
+      )}
+
       <div className="d-flex flex-wrap gap-2 mb-4">
-        {filters.map((item) => (
-          <Button
-            key={item}
-            size="sm"
-            variant={filter === item ? 'dark' : 'outline-dark'}
-            onClick={() => setFilter(item)}
-            className="text-capitalize"
-          >
-            {item.replace('-', ' ')}
-          </Button>
-        ))}
+        {filters.map((item) => <Button key={item} size="sm" variant={filter === item ? 'dark' : 'outline-dark'} onClick={() => setFilter(item)} className="text-capitalize">{filterLabel(item)}</Button>)}
       </div>
 
       {filtered.length ? (
         <Row className="g-4">
-          {filtered.map((league) => (
-            <Col md={6} xl={4} key={league.id}>
-              <LeagueCard league={league} />
-            </Col>
-          ))}
+          {filtered.map((league) => <Col md={6} xl={4} key={league.id}><LeagueCard league={league} /></Col>)}
         </Row>
       ) : (
         <EmptyState
           icon={discover ? Search : Trophy}
           title={discover ? 'No competitions match this filter' : 'No leagues yet'}
-          description={discover
-            ? 'Try another competition format or use a private league code.'
-            : 'Join with a code, discover a public competition or create your own league.'}
-          action={(
-            <Button as={Link} to={discover ? '/app/leagues/join' : '/app/leagues/discover'}>
-              {discover ? 'Join with code' : 'Discover competitions'}
-            </Button>
-          )}
+          description={discover ? 'Try another competition format or use a private league code.' : 'Join with a code, discover a public competition or create your own league.'}
+          action={<Button as={Link} to={discover ? '/app/leagues/join' : '/app/leagues/discover'}>{discover ? 'Join with code' : 'Discover competitions'}</Button>}
         />
       )}
     </>
@@ -285,6 +322,7 @@ export function CreateLeaguePage() {
 
   return (
     <>
+      <LeagueBreadcrumbs current="Create league" />
       <PageHeader
         eyebrow="Custom competitions"
         title="Create League"
@@ -568,6 +606,7 @@ export function JoinLeagueByCodePage() {
 
   return (
     <>
+      <LeagueBreadcrumbs current="Join with code" />
       <PageHeader
         eyebrow="Private leagues"
         title="Join with a League Code"
@@ -676,41 +715,33 @@ export function LeagueDetailsPage() {
   const { leagueId } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [scoreBusy, setScoreBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const load = async () => {
-    setError('');
+  const load = async ({ refresh = false, background = false } = {}) => {
+    if (!background) setError('');
     try {
-      setData(await api(`/api/leagues/${leagueId}`));
+      const response = await api(`/api/leagues/${leagueId}${refresh ? '?refresh=1' : ''}`);
+      setData(response);
+      return response;
     } catch (requestError) {
-      setError(requestError.message);
+      if (!background) setError(requestError.message);
+      return null;
     }
   };
 
   useEffect(() => {
-    load();
+    let active = true;
+    (async () => {
+      const initial = await load();
+      if (active && initial) load({ refresh: true, background: true });
+    })();
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
 
-  const syncScores = async () => {
-    setScoreBusy(true);
-    setNotice('');
-    try {
-      const response = await api(`/api/leagues/${leagueId}/sync-scores`, {
-        method: 'POST',
-        body: {},
-      });
-      setData({ league: response.league, leaderboard: response.leaderboard });
-      setNotice(response.sync?.message || 'League standings refreshed from FPL data.');
-    } catch (requestError) {
-      setNotice(requestError.message);
-    } finally {
-      setScoreBusy(false);
-    }
-  };
+
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingScreen fullScreen={false} />;
@@ -741,6 +772,7 @@ export function LeagueDetailsPage() {
 
   return (
     <>
+      <LeagueBreadcrumbs current={league.name} />
       <PageHeader
         eyebrow={league.competitionType}
         title={league.name}
@@ -748,7 +780,6 @@ export function LeagueDetailsPage() {
         actions={headerAction}
       />
 
-      {scoreBusy && <Alert variant="info">Fetching every paid member's FPL history and recalculating the league standings…</Alert>}
       {notice && <Alert variant={notice.toLowerCase().includes('failed') || notice.toLowerCase().includes('cannot') ? 'danger' : 'info'}>{notice}</Alert>}
       {league.canPayEntry && (
         <Alert variant="warning">
@@ -827,25 +858,14 @@ export function LeagueDetailsPage() {
                 <h2 className="h4 mb-1">Leaderboard</h2>
                 <div className="small muted">
                   {league.lastScoredAt
-                    ? `Last synced ${new Date(league.lastScoredAt).toLocaleString('en-GB')} through Gameweek ${league.scoreThroughGameweek || '—'}`
-                    : 'Scores have not yet been synced for this league.'}
+                    ? `Refreshed ${new Date(league.lastScoredAt).toLocaleString('en-GB')} through Gameweek ${league.scoreThroughGameweek || '—'}`
+                    : 'Scores refresh automatically from FPL when this page is opened.'}
                 </div>
               </div>
-              {(league.joined || league.createdByCurrentUser) && league.status !== 'draft' && (
-                <Button variant="outline-dark" onClick={syncScores} disabled={scoreBusy}>
-                  <RefreshCw size={16} /> {scoreBusy ? 'Refreshing…' : 'Refresh FPL scores'}
-                </Button>
-              )}
+              <LeaderboardShareCard leagueId={league.id} title={league.name} disabled={!data.leaderboard.length} />
             </div>
             {data.leaderboard.length ? (
-              <>
-                <LeaderboardShareCard
-                  leagueId={league.id}
-                  title={league.name}
-                  disabled={!data.leaderboard.length}
-                />
-                <LeaderboardTable rows={data.leaderboard} />
-              </>
+              <LeaderboardTable rows={data.leaderboard} />
             ) : (
               <EmptyState
                 title="No paid standings yet"
