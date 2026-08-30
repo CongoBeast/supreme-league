@@ -4,6 +4,7 @@ import { Trophy } from 'lucide-react';
 import { api } from '../services/api';
 import PageHeader from '../components/PageHeader';
 import LeaderboardTable from '../components/LeaderboardTable';
+import LeaderboardShareCard from '../components/LeaderboardShareCard';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
@@ -27,6 +28,11 @@ function CompetitionBoard({ board }) {
           {board.scoreThroughGameweek ? `Scored through Gameweek ${board.scoreThroughGameweek}` : 'Awaiting first score sync'}
         </span>
       </div>
+      <LeaderboardShareCard
+        title={board.leagueName || board.name}
+        subtitle={board.scoreThroughGameweek ? `Scored through Gameweek ${board.scoreThroughGameweek}` : 'Awaiting first score sync'}
+        rows={board.rows}
+      />
       <LeaderboardTable rows={board.rows} />
     </>
   );
@@ -36,27 +42,16 @@ export default function LeaderboardsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
-  const load = async ({ refresh = false, background = false } = {}) => {
-    if (!background) setError('');
+  const load = async () => {
+    setError('');
     try {
-      const response = await api(`/api/leaderboards${refresh ? '?refresh=1' : ''}`);
-      setData(response);
-      return response;
+      setData(await api('/api/leaderboards'));
     } catch (requestError) {
-      if (!background) setError(requestError.message);
-      return null;
+      setError(requestError.message);
     }
   };
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const initial = await load();
-      if (active && initial) load({ refresh: true, background: true });
-    })();
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { load(); }, []);
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingScreen fullScreen={false} label="Loading leaderboards" />;
@@ -66,7 +61,7 @@ export default function LeaderboardsPage() {
       <PageHeader
         eyebrow="Rankings"
         title="Leaderboards"
-        description="Saved standings appear immediately; FPL score refresh runs automatically after the page is visible. Wins and prize earnings appear only after completed settlement transactions."
+        description="Competition standings use qualifying paid entries and official score records. Wins and prize earnings appear only after completed settlement transactions."
       />
       <Alert variant="light" className="border">
         <Trophy size={18} className="me-2" />

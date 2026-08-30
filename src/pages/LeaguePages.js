@@ -11,6 +11,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import StatusBadge from '../components/StatusBadge';
 import CurrencyAmount from '../components/CurrencyAmount';
 import LeaderboardTable from '../components/LeaderboardTable';
+import LeaderboardShareCard from '../components/LeaderboardShareCard';
 import PaynowCheckoutModal from '../components/PaynowCheckoutModal';
 import LeagueAccessFields from '../components/LeagueAccessFields';
 
@@ -675,33 +676,41 @@ export function LeagueDetailsPage() {
   const { leagueId } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [scoreBusy, setScoreBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const load = async ({ refresh = false, background = false } = {}) => {
-    if (!background) setError('');
+  const load = async () => {
+    setError('');
     try {
-      const response = await api(`/api/leagues/${leagueId}${refresh ? '?refresh=1' : ''}`);
-      setData(response);
-      return response;
+      setData(await api(`/api/leagues/${leagueId}`));
     } catch (requestError) {
-      if (!background) setError(requestError.message);
-      return null;
+      setError(requestError.message);
     }
   };
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const initial = await load();
-      if (active && initial) load({ refresh: true, background: true });
-    })();
-    return () => { active = false; };
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
 
-
+  const syncScores = async () => {
+    setScoreBusy(true);
+    setNotice('');
+    try {
+      const response = await api(`/api/leagues/${leagueId}/sync-scores`, {
+        method: 'POST',
+        body: {},
+      });
+      setData({ league: response.league, leaderboard: response.leaderboard });
+      setNotice(response.sync?.message || 'League standings refreshed from FPL data.');
+    } catch (requestError) {
+      setNotice(requestError.message);
+    } finally {
+      setScoreBusy(false);
+    }
+  };
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingScreen fullScreen={false} />;
@@ -739,6 +748,7 @@ export function LeagueDetailsPage() {
         actions={headerAction}
       />
 
+      {scoreBusy && <Alert variant="info">Fetching every paid member's FPL history and recalculating the league standings…</Alert>}
       {notice && <Alert variant={notice.toLowerCase().includes('failed') || notice.toLowerCase().includes('cannot') ? 'danger' : 'info'}>{notice}</Alert>}
       {league.canPayEntry && (
         <Alert variant="warning">
@@ -817,13 +827,25 @@ export function LeagueDetailsPage() {
                 <h2 className="h4 mb-1">Leaderboard</h2>
                 <div className="small muted">
                   {league.lastScoredAt
-                    ? `Refreshed ${new Date(league.lastScoredAt).toLocaleString('en-GB')} through Gameweek ${league.scoreThroughGameweek || '—'}`
-                    : 'Scores refresh automatically from FPL when this page is opened.'}
+                    ? `Last synced ${new Date(league.lastScoredAt).toLocaleString('en-GB')} through Gameweek ${league.scoreThroughGameweek || '—'}`
+                    : 'Scores have not yet been synced for this league.'}
                 </div>
               </div>
+              {(league.joined || league.createdByCurrentUser) && league.status !== 'draft' && (
+                <Button variant="outline-dark" onClick={syncScores} disabled={scoreBusy}>
+                  <RefreshCw size={16} /> {scoreBusy ? 'Refreshing…' : 'Refresh FPL scores'}
+                </Button>
+              )}
             </div>
             {data.leaderboard.length ? (
-              <LeaderboardTable rows={data.leaderboard} />
+              <>
+                <LeaderboardShareCard
+                  title={league.name}
+                  subtitle={league.scoreThroughGameweek ? `Scored through Gameweek ${league.scoreThroughGameweek}` : 'Awaiting first score sync'}
+                  rows={data.leaderboard}
+                />
+                <LeaderboardTable rows={data.leaderboard} />
+              </>
             ) : (
               <EmptyState
                 title="No paid standings yet"
