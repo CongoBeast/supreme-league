@@ -478,6 +478,7 @@ export default function AdminFinancesPage() {
             <Alert variant="info" className="small">Payouts must be made only to the USD destination shown below. The user is emailed whenever the status changes.</Alert>
             <Row className="g-2 mb-3">
               <Col md={6}><strong>Method:</strong> {selected.metadata?.method || '—'}</Col>
+              <Col md={6}><strong>Account name:</strong> {selected.metadata?.accountName || '—'}</Col>
               <Col md={6}><strong>Bank:</strong> {selected.metadata?.bankName || '—'}</Col>
               <Col md={6}><strong>Branch:</strong> {selected.metadata?.branchNumber || '—'}</Col>
               <Col md={6}><strong>Account:</strong> {selected.metadata?.accountNumber || '—'} (USD)</Col>
