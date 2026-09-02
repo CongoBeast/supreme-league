@@ -23,7 +23,7 @@ export default function WalletPage() {
   const [showDepositCheckout, setShowDepositCheckout] = useState(false);
   const [filters, setFilters] = useState({ search: '', type: '', status: '', from: '', to: '' });
   const [depositAmount, setDepositAmount] = useState('');
-  const [withdrawal, setWithdrawal] = useState({ amount: '', method: 'EcoCash', accountNumber: '', bankName: '', branchNumber: '', currency: 'USD', confirm: false });
+  const [withdrawal, setWithdrawal] = useState({ amount: '', method: 'EcoCash', accountName: '', accountNumber: '', bankName: '', branchNumber: '', currency: 'USD', confirm: false });
   const [busy, setBusy] = useState('');
 
   const load = async (page = 1) => {
@@ -79,7 +79,7 @@ export default function WalletPage() {
         body: withdrawal,
       });
       setNotice(data.message || 'Withdrawal request created for review.');
-      setWithdrawal({ amount: '', method: 'EcoCash', accountNumber: '', bankName: '', branchNumber: '', currency: 'USD', confirm: false });
+      setWithdrawal({ amount: '', method: 'EcoCash', accountName: '', accountNumber: '', bankName: '', branchNumber: '', currency: 'USD', confirm: false });
       await load();
     } catch (withdrawalError) { setNotice(withdrawalError.message); } finally { setBusy(''); }
   };
@@ -167,6 +167,18 @@ export default function WalletPage() {
                 <Col md={6}>
                   <Form.Label>Destination method</Form.Label>
                   <Form.Select value={withdrawal.method} onChange={(event) => setWithdrawal({ ...withdrawal, method: event.target.value })}>{withdrawalMethods.map((method) => <option key={method}>{method}</option>)}</Form.Select>
+                </Col>
+                <Col xs={12}>
+                  <Form.Label>{withdrawal.method === 'Bank Transfer' ? 'Account holder name' : `Registered ${withdrawal.method} account name`}</Form.Label>
+                  <Form.Control
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    placeholder={withdrawal.method === 'Bank Transfer' ? 'Name on the USD bank account' : 'Name registered on the mobile-money account'}
+                    value={withdrawal.accountName}
+                    onChange={(event) => setWithdrawal({ ...withdrawal, accountName: event.target.value })}
+                  />
+                  <Form.Text>This name must match the payout destination.</Form.Text>
                 </Col>
                 {withdrawal.method === 'Bank Transfer' ? <>
                   <Col md={6}><Form.Label>Bank name</Form.Label><Form.Select required value={withdrawal.bankName} onChange={(event) => setWithdrawal({ ...withdrawal, bankName: event.target.value })}><option value="">Select a Zimbabwean bank</option>{zimBanks.map((bank) => <option key={bank} value={bank}>{bank}</option>)}</Form.Select></Col>

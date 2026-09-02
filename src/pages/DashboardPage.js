@@ -16,6 +16,59 @@ import CurrencyAmount from '../components/CurrencyAmount';
 
 const deadline = (value) => value ? new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : 'Waiting for FPL';
 
+
+function deadlineParts(deadlineAt, now = Date.now()) {
+  if (!deadlineAt) return null;
+  const target = new Date(deadlineAt).getTime();
+  if (!Number.isFinite(target)) return null;
+  const diff = Math.max(0, target - now);
+  const totalSeconds = Math.floor(diff / 1000);
+  return {
+    expired: target <= now,
+    days: Math.floor(totalSeconds / 86400),
+    hours: Math.floor((totalSeconds % 86400) / 3600),
+    minutes: Math.floor((totalSeconds % 3600) / 60),
+    seconds: totalSeconds % 60,
+  };
+}
+
+function DeadlineCountdown({ gameState }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const parts = deadlineParts(gameState?.nextDeadline, now);
+  if (!parts) return null;
+  const cells = [
+    ['Days', parts.days],
+    ['Hours', parts.hours],
+    ['Minutes', parts.minutes],
+    ['Seconds', parts.seconds],
+  ];
+
+  return (
+    <div className="surface-card p-4 mb-4 border border-primary-subtle">
+      <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+          <div className="sfl-kicker"><CalendarClock size={15} /> Next FPL deadline</div>
+          <h2 className="h4 mb-1 mt-2">{parts.expired ? 'Deadline reached' : `Gameweek ${gameState?.nextGameweek || gameState?.currentGameweek || ''} deadline countdown`}</h2>
+          <div className="muted small">{deadline(gameState?.nextDeadline)}</div>
+        </div>
+        <div className="d-flex flex-wrap gap-2">
+          {cells.map(([label, value]) => (
+            <div key={label} className="border rounded-3 px-3 py-2 text-center bg-light" style={{ minWidth: 82 }}>
+              <div className="h4 mb-0 fw-bold">{String(value).padStart(2, '0')}</div>
+              <div className="small muted">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OnboardingDashboard({ data }) {
   const offers = data.availableCompetitions || [];
   return <>
@@ -38,6 +91,8 @@ function OnboardingDashboard({ data }) {
         </Col>
       </Row>
     </div>
+
+    <DeadlineCountdown gameState={data.gameState} />
 
     <div className="surface-card p-4 mb-4">
       <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
@@ -116,6 +171,8 @@ export default function DashboardPage() {
       actions={refreshing ? <Badge bg="light" text="dark" className="border px-3 py-2">Updating FPL data…</Badge> : null}
     />
     {data.team?.providerWarning && <Alert variant="warning">{data.team.providerWarning}</Alert>}
+
+    <DeadlineCountdown gameState={data.gameState} />
 
     <Row className="g-3 mb-4">
       <Col sm={6} xl={2}><StatCard icon={Activity} label="Gameweek points" value={summary.gameweekPoints} /></Col>
