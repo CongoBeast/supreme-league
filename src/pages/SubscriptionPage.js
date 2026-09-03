@@ -63,7 +63,9 @@ export default function SubscriptionPage() {
     if (!requestedPlanCode) return;
     const requestedPlan = (data.plans || []).map(normalizePlan).find((plan) => plan.planCode === requestedPlanCode);
     handledRequestedPlan.current = true;
-    if (requestedPlan && data.subscription?.planCode !== requestedPlan.planCode) {
+    const alreadyOnRequestedCycle = data.subscription?.planCode === requestedPlan?.planCode
+      && data.subscription?.coversCurrentCycle !== false;
+    if (requestedPlan && !alreadyOnRequestedCycle) {
       setCheckoutPlan(requestedPlan);
     }
   }, [data, searchParams]);
@@ -119,22 +121,31 @@ export default function SubscriptionPage() {
       )}
 
       <Row className="g-4 mb-4">
-        {(data.plans || []).map(normalizePlan).map((plan) => (
-          <Col md={6} xl={3} key={plan.planCode}>
-            <div className="surface-card p-4 h-100 d-flex flex-column">
-              <Crown className="text-brand mb-3" />
-              <div className="muted small">{plan.planName}</div>
-              <div className="display-5 fw-bold">{moneyFromCents(plan.amountCents)}</div>
-              <div className="small muted mb-3">{plan.billingInterval} · {plan.validityDays} days</div>
-              <div className="flex-grow-1">
-                {plan.competitionsIncluded.map((item) => <div className="d-flex gap-2 small mb-2" key={item}><CheckCircle2 size={16} className="text-brand flex-shrink-0" />{item}</div>)}
+        {(data.plans || []).map(normalizePlan).map((plan) => {
+          // A monthly-billed plan can still show status 'active' while its cycle
+          // is for a month that's finishing (its validUntil lands right at the
+          // next gameweek's deadline). Only treat it as "already have this" when
+          // it's also still on the current cycle — otherwise a subbed member
+          // would be locked out of renewing for the upcoming gameweek.
+          const isSamePlan = data.subscription?.planCode === plan.planCode;
+          const isCurrentPlan = isSamePlan && data.subscription?.coversCurrentCycle !== false;
+          return (
+            <Col md={6} xl={3} key={plan.planCode}>
+              <div className="surface-card p-4 h-100 d-flex flex-column">
+                <Crown className="text-brand mb-3" />
+                <div className="muted small">{plan.planName}</div>
+                <div className="display-5 fw-bold">{moneyFromCents(plan.amountCents)}</div>
+                <div className="small muted mb-3">{plan.billingInterval} · {plan.validityDays} days</div>
+                <div className="flex-grow-1">
+                  {plan.competitionsIncluded.map((item) => <div className="d-flex gap-2 small mb-2" key={item}><CheckCircle2 size={16} className="text-brand flex-shrink-0" />{item}</div>)}
+                </div>
+                <Button className="mt-4" variant={isCurrentPlan ? 'outline-dark' : 'dark'} disabled={isCurrentPlan} onClick={() => openCheckout(plan)}>
+                  {isCurrentPlan ? 'Current plan' : isSamePlan ? 'Renew for next cycle' : 'Choose payment method'}
+                </Button>
               </div>
-              <Button className="mt-4" variant={data.subscription?.planCode === plan.planCode ? 'outline-dark' : 'dark'} disabled={data.subscription?.planCode === plan.planCode} onClick={() => openCheckout(plan)}>
-                {data.subscription?.planCode === plan.planCode ? 'Current plan' : 'Choose payment method'}
-              </Button>
-            </div>
-          </Col>
-        ))}
+            </Col>
+          );
+        })}
       </Row>
 
       <div className="surface-card p-4">
