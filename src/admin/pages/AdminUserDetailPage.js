@@ -24,6 +24,11 @@ export default function AdminUserDetailPage() {
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState('');
 
+  const [endTarget, setEndTarget] = useState(null);
+  const [endForm, setEndForm] = useState({ reason: '' });
+  const [endBusy, setEndBusy] = useState(false);
+  const [endError, setEndError] = useState('');
+
   const [creditOpen, setCreditOpen] = useState(false);
   const [creditForm, setCreditForm] = useState({ amount: '', reason: '' });
   const [creditBusy, setCreditBusy] = useState(false);
@@ -112,6 +117,37 @@ export default function AdminUserDetailPage() {
       setCancelError(requestError.message || 'The subscription could not be cancelled.');
     } finally {
       setCancelBusy(false);
+    }
+  };
+
+  const openEndModal = (subscription) => {
+    setEndError('');
+    setEndTarget(subscription);
+    setEndForm({ reason: '' });
+  };
+
+  const closeEndModal = () => {
+    if (endBusy) return;
+    setEndTarget(null);
+  };
+
+  const submitEndSubscription = async (event) => {
+    event.preventDefault();
+    if (!endTarget) return;
+    setEndBusy(true);
+    setEndError('');
+    try {
+      await adminApi(`/subscriptions/${endTarget._id}/end`, {
+        method: 'POST',
+        body: { reason: endForm.reason },
+      });
+      setEndTarget(null);
+      setMessage('Subscription ended immediately. No refund was issued.');
+      await load();
+    } catch (requestError) {
+      setEndError(requestError.message || 'The subscription could not be ended.');
+    } finally {
+      setEndBusy(false);
     }
   };
 
@@ -328,10 +364,15 @@ export default function AdminUserDetailPage() {
                   <td>{dateTime(subscription.activatedAt || subscription.createdAt)}</td>
                   <td>{dateTime(subscription.validUntil)}</td>
                   <td className="text-end">
-                    {subscription.status !== 'cancelled' && (
-                      <Button size="sm" variant="outline-danger" onClick={() => openCancelModal(subscription)}>
-                        Cancel &amp; refund
-                      </Button>
+                    {!['cancelled', 'expired', 'replaced'].includes(subscription.status) && (
+                      <div className="d-flex gap-2 justify-content-end">
+                        <Button size="sm" variant="outline-secondary" onClick={() => openEndModal(subscription)}>
+                          End (no refund)
+                        </Button>
+                        <Button size="sm" variant="outline-danger" onClick={() => openCancelModal(subscription)}>
+                          Cancel &amp; refund
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -444,6 +485,42 @@ export default function AdminUserDetailPage() {
             </Button>
             <Button type="submit" variant="danger" disabled={cancelBusy}>
               {cancelBusy ? 'Cancelling…' : 'Cancel subscription & refund'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal show={Boolean(endTarget)} onHide={closeEndModal} centered>
+        <Form onSubmit={submitEndSubscription}>
+          <Modal.Header closeButton>
+            <Modal.Title>End subscription</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {endError && <Alert variant="danger">{endError}</Alert>}
+            <p className="text-muted small mb-3">
+              Ending <strong>{endTarget?.planName || humanize(endTarget?.planCode)}</strong> stops it immediately —
+              no refund is issued and it is not marked as cancelled. Use this when a subscription ran past where
+              it should have (for example a reconciliation lag) rather than one being refunded.
+            </p>
+            <Form.Group>
+              <Form.Label>Reason</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                placeholder="e.g. Manually ending a stale subscription that ran over its cycle"
+                value={endForm.reason}
+                onChange={(event) => setEndForm((current) => ({ ...current, reason: event.target.value }))}
+                required
+              />
+              <Form.Text className="text-muted">Recorded in the admin audit log.</Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={closeEndModal} disabled={endBusy}>
+              Close
+            </Button>
+            <Button type="submit" variant="secondary" disabled={endBusy}>
+              {endBusy ? 'Ending…' : 'End subscription'}
             </Button>
           </Modal.Footer>
         </Form>
