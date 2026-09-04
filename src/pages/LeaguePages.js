@@ -767,7 +767,11 @@ export function LeagueDetailsPage() {
   if (!data) return <LoadingScreen fullScreen={false} />;
 
   const league = data.league;
-  const isFreeEntry = Number(league.entryFeeCents || 0) <= 0;
+  // freeEntry comes from the backend's SupremeLeagueMeta.entryMode check —
+  // NOT entryFeeCents. Several subscription-gated Supreme leagues (Bi-weekly,
+  // Monthly, Half-season, Season) also have entryFeeCents === 0 without being
+  // free for everyone, so entryFeeCents can't be used here.
+  const isFreeEntry = Boolean(league.freeEntry);
   let headerAction = <StatusBadge status={league.joined ? 'joined' : league.status} />;
   if (isFreeEntry && !league.joined && !league.inviteOnly && ['open', 'upcoming'].includes(league.status)) {
     headerAction = (
