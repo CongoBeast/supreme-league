@@ -718,6 +718,7 @@ export function LeagueDetailsPage() {
   const [notice, setNotice] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [joinBusy, setJoinBusy] = useState(false);
 
   const load = async ({ refresh = false, background = false } = {}) => {
     if (!background) setError('');
@@ -741,14 +742,40 @@ export function LeagueDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
 
-
+  // Free leagues (e.g. Clash of the Captains, entryFeeCents === 0) have nothing
+  // to charge, so joining never goes through the wallet/Paynow checkout — it
+  // hits the plain join endpoint directly. Routing a $0 entry through the
+  // payment gateway is what produced the "not enough balance" error, since
+  // the wallet debit path treats any non-positive amount as invalid rather
+  // than as "nothing to pay".
+  const joinFreeLeague = async () => {
+    setJoinBusy(true);
+    setError('');
+    try {
+      await api(`/api/leagues/${leagueId}/join`, { method: 'POST' });
+      setNotice('You have joined this free league.');
+      await load();
+    } catch (requestError) {
+      setNotice('');
+      setError(requestError.message);
+    } finally {
+      setJoinBusy(false);
+    }
+  };
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingScreen fullScreen={false} />;
 
   const league = data.league;
+  const isFreeEntry = Number(league.entryFeeCents || 0) <= 0;
   let headerAction = <StatusBadge status={league.joined ? 'joined' : league.status} />;
-  if (league.canPayEntry) {
+  if (isFreeEntry && !league.joined && !league.inviteOnly && ['open', 'upcoming'].includes(league.status)) {
+    headerAction = (
+      <Button onClick={joinFreeLeague} disabled={joinBusy}>
+        {joinBusy ? 'Joining…' : 'Join for free'}
+      </Button>
+    );
+  } else if (league.canPayEntry) {
     headerAction = (
       <Button onClick={() => setCheckoutOpen(true)}>
         Complete payment {moneyFromCents(league.entryFeeCents)}
