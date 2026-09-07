@@ -34,6 +34,11 @@ export default function AdminUserDetailPage() {
   const [creditBusy, setCreditBusy] = useState(false);
   const [creditError, setCreditError] = useState('');
 
+  const [debitOpen, setDebitOpen] = useState(false);
+  const [debitForm, setDebitForm] = useState({ amount: '', reason: '' });
+  const [debitBusy, setDebitBusy] = useState(false);
+  const [debitError, setDebitError] = useState('');
+
   const [bonusOpen, setBonusOpen] = useState(false);
   const [bonusForm, setBonusForm] = useState({ amount: '', reason: '' });
   const [bonusBusy, setBonusBusy] = useState(false);
@@ -184,6 +189,39 @@ export default function AdminUserDetailPage() {
     }
   };
 
+  const openDebitModal = () => {
+    setDebitError('');
+    setDebitForm({ amount: '', reason: '' });
+    setDebitOpen(true);
+  };
+
+  const closeDebitModal = () => {
+    if (debitBusy) return;
+    setDebitOpen(false);
+  };
+
+  const submitWalletDebit = async (event) => {
+    event.preventDefault();
+    setDebitBusy(true);
+    setDebitError('');
+    try {
+      await adminApi(`/users/${id}/wallet/debit`, {
+        method: 'POST',
+        body: {
+          amountCents: Math.round(Number(debitForm.amount || 0) * 100),
+          reason: debitForm.reason,
+        },
+      });
+      setDebitOpen(false);
+      setMessage('Wallet debited and the member has been emailed.');
+      await load();
+    } catch (requestError) {
+      setDebitError(requestError.message || 'The wallet could not be debited.');
+    } finally {
+      setDebitBusy(false);
+    }
+  };
+
   const submitPerformanceBonus = async (event) => {
     event.preventDefault();
     setBonusBusy(true);
@@ -311,6 +349,7 @@ export default function AdminUserDetailPage() {
               <div className="d-flex gap-2 flex-wrap">
                 <Button size="sm" variant="primary" onClick={() => { setBonusError(''); setBonusForm({ amount: '', reason: '' }); setBonusOpen(true); }}><Gift size={15} /> Performance bonus</Button>
                 <Button size="sm" variant="outline-primary" onClick={openCreditModal}>Credit wallet</Button>
+                <Button size="sm" variant="outline-danger" onClick={openDebitModal}>Debit wallet</Button>
               </div>
             </Card.Header>
             <Card.Body>
@@ -580,6 +619,53 @@ export default function AdminUserDetailPage() {
             </Button>
             <Button type="submit" variant="primary" disabled={creditBusy}>
               {creditBusy ? 'Crediting…' : 'Credit wallet'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal show={debitOpen} onHide={closeDebitModal} centered>
+        <Form onSubmit={submitWalletDebit}>
+          <Modal.Header closeButton>
+            <Modal.Title>Debit wallet</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {debitError && <Alert variant="danger">{debitError}</Alert>}
+            <p className="text-muted small mb-3">
+              Deducts funds directly from this member&apos;s wallet — for example, to charge the entry fee after
+              manually adding them to a paid league outside the normal checkout flow. Refuses to take the balance
+              negative unless you confirm below.
+            </p>
+            <Form.Group className="mb-3">
+              <Form.Label>Debit amount (USD)</Form.Label>
+              <Form.Control
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={debitForm.amount}
+                onChange={(event) => setDebitForm((current) => ({ ...current, amount: event.target.value }))}
+                required
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Reason</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                placeholder="e.g. Entry fee for manual addition to Gameweek 12 Weekly league"
+                value={debitForm.reason}
+                onChange={(event) => setDebitForm((current) => ({ ...current, reason: event.target.value }))}
+                required
+              />
+              <Form.Text className="text-muted">Included in the email sent to the member.</Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={closeDebitModal} disabled={debitBusy}>
+              Close
+            </Button>
+            <Button type="submit" variant="danger" disabled={debitBusy}>
+              {debitBusy ? 'Debiting…' : 'Debit wallet'}
             </Button>
           </Modal.Footer>
         </Form>

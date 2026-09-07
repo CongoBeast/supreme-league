@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Form, Row, Table } from 'react-bootstrap';
-import { Layers3, Search, Trophy, UsersRound } from 'lucide-react';
+import { Alert, Button, Card, Col, Form, Row, Table } from 'react-bootstrap';
+import { Layers3, RefreshCw, Search, Trophy, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { adminApi, buildQuery, dateTime, humanize, money } from '../adminApi';
@@ -33,6 +33,9 @@ export default function AdminLeaguesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [checkingResults, setCheckingResults] = useState(false);
+  const [checkResultsMessage, setCheckResultsMessage] = useState('');
+  const [checkResultsError, setCheckResultsError] = useState('');
 
   useEffect(() => {
     adminApi('/dashboard').then(setDashboard).catch(() => null);
@@ -63,6 +66,37 @@ export default function AdminLeaguesPage() {
     setFilters((current) => ({ ...current, [key]: value }));
   };
 
+  // Sweeps every league at once: Supreme leagues run through the same
+  // maintenance check that already runs on a timer (score enrollment +
+  // settlement), and standard/custom leagues get a forced score resync. This
+  // is additive to the existing per-league "Refresh diagnostics" / "Retry
+  // automatic settlement" buttons on each league's own page — it just saves
+  // having to open every league individually to notice a stalled sync or a
+  // league that's newly ready to settle.
+  const checkResultsStatus = async () => {
+    setCheckingResults(true);
+    setCheckResultsError('');
+    setCheckResultsMessage('');
+    try {
+      const result = await adminApi('/maintenance/check-results', { method: 'POST' });
+      const supremeSettled = result?.supreme?.supremeSettlement?.settled ?? 0;
+      const standardChecked = result?.standard?.checked ?? 0;
+      const standardRefreshed = result?.standard?.refreshed ?? 0;
+      const failureCount = result?.standard?.failures?.length ?? 0;
+      setCheckResultsMessage(
+        `Checked results across every league. ${standardRefreshed}/${standardChecked} standard league(s) rescored, `
+        + `${supremeSettled} Supreme league(s) settled this pass.`
+        + (failureCount ? ` ${failureCount} league(s) hit a score sync issue — open them individually for details.` : '')
+      );
+      const query = buildQuery({ ...filters, page, limit: 25 });
+      setData(await adminApi(`/leagues?${query}`));
+    } catch (requestError) {
+      setCheckResultsError(requestError.message || 'The results check could not be completed.');
+    } finally {
+      setCheckingResults(false);
+    }
+  };
+
   if (loading) {
     return <AdminLoading message="Loading leagues…" />;
   }
@@ -78,7 +112,15 @@ export default function AdminLeaguesPage() {
       <AdminPageHeader
         title="Manage leagues"
         description="Search every competition, review capacity and status, and open a league to manage its members, rules and leaderboard."
+        actions={
+          <Button variant="outline-primary" onClick={checkResultsStatus} disabled={checkingResults}>
+            <RefreshCw size={16} /> {checkingResults ? 'Checking results…' : 'Check results status'}
+          </Button>
+        }
       />
+
+      {checkResultsMessage && <Alert variant="success" onClose={() => setCheckResultsMessage('')} dismissible>{checkResultsMessage}</Alert>}
+      {checkResultsError && <Alert variant="danger" onClose={() => setCheckResultsError('')} dismissible>{checkResultsError}</Alert>}
 
       {dashboard && (
         <Row className="g-3 mb-4">
