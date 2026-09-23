@@ -56,9 +56,12 @@ export default function PaynowCheckoutModal({
   };
 
   const selectedMethod = useMemo(() => METHODS.find((item) => item.code === method), [method]);
+  const checkoutAmountCents = Number.isInteger(Number(amountCents)) && Number(amountCents) > 0
+    ? Number(amountCents)
+    : 0;
   const availableBalanceCents = Number(wallet?.availableBalanceCents || 0);
-  const balanceAfterCents = availableBalanceCents - Number(amountCents || 0);
-  const walletHasFunds = availableBalanceCents >= Number(amountCents || 0);
+  const balanceAfterCents = availableBalanceCents - checkoutAmountCents;
+  const walletHasFunds = checkoutAmountCents > 0 && availableBalanceCents >= checkoutAmountCents;
 
   const publishWallet = (value) => {
     const normalized = normalizeWallet(value);
@@ -140,6 +143,7 @@ export default function PaynowCheckoutModal({
     setError('');
     setBusy('initiate');
     try {
+      if (checkoutAmountCents <= 0) throw new Error('The server did not provide a valid payment amount. Refresh the page before trying again.');
       let path;
       let body;
       if (paymentSource === 'wallet' && walletAllowed) {
@@ -161,7 +165,7 @@ export default function PaynowCheckoutModal({
           ? { planCode, method, phone }
           : purpose === 'league-entry'
             ? { leagueId, inviteCode, method, phone }
-            : { amount: (Number(amountCents) / 100).toFixed(2), method, phone };
+            : { amount: (checkoutAmountCents / 100).toFixed(2), method, phone };
       }
 
       const requestSource = paymentSource === 'wallet' && walletAllowed ? 'wallet' : 'paynow';
@@ -220,8 +224,9 @@ export default function PaynowCheckoutModal({
       <Modal.Body>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <span className="muted">Amount</span>
-          <strong className="fs-4">{moneyFromCents(amountCents)}</strong>
+          <strong className="fs-4">{moneyFromCents(checkoutAmountCents)}</strong>
         </div>
+        {checkoutAmountCents <= 0 && <Alert variant="danger">This checkout does not have a valid price. Close it, refresh the page and try again.</Alert>}
         {error && <Alert variant="danger">{error}</Alert>}
 
         {!payment && (
@@ -255,7 +260,7 @@ export default function PaynowCheckoutModal({
               <>
                 <div className="border rounded p-3 mb-3">
                   <div className="d-flex justify-content-between gap-3 mb-2"><span className="muted">Available balance</span><strong>{moneyFromCents(availableBalanceCents)}</strong></div>
-                  <div className="d-flex justify-content-between gap-3 mb-2"><span className="muted">This payment</span><strong>− {moneyFromCents(amountCents)}</strong></div>
+                  <div className="d-flex justify-content-between gap-3 mb-2"><span className="muted">This payment</span><strong>− {moneyFromCents(checkoutAmountCents)}</strong></div>
                   <div className="d-flex justify-content-between gap-3 border-top pt-2"><span>Balance after payment</span><strong className={walletHasFunds ? '' : 'text-danger'}>{moneyFromCents(Math.max(0, balanceAfterCents))}</strong></div>
                 </div>
                 {!walletHasFunds && (
@@ -265,14 +270,14 @@ export default function PaynowCheckoutModal({
                   className="mb-3"
                   checked={walletConfirmed}
                   onChange={(event) => setWalletConfirmed(event.target.checked)}
-                  label={`I confirm that ${moneyFromCents(amountCents)} will be deducted from my Supreme wallet.`}
+                  label={`I confirm that ${moneyFromCents(checkoutAmountCents)} will be deducted from my Supreme wallet.`}
                   required
                 />
                 <Alert variant="light" className="small">
                   The server verifies the current balance and price before deducting anything. Your updated balance appears immediately and a transaction email is sent when the payment completes.
                 </Alert>
-                <Button type="submit" className="w-100" disabled={busy === 'initiate' || walletLoading || !walletHasFunds || !walletConfirmed}>
-                  {busy === 'initiate' ? <><Spinner size="sm" className="me-2" />Confirming wallet payment…</> : `Pay ${moneyFromCents(amountCents)} from wallet`}
+                <Button type="submit" className="w-100" disabled={busy === 'initiate' || walletLoading || !walletHasFunds || !walletConfirmed || checkoutAmountCents <= 0}>
+                  {busy === 'initiate' ? <><Spinner size="sm" className="me-2" />Confirming wallet payment…</> : `Pay ${moneyFromCents(checkoutAmountCents)} from wallet`}
                 </Button>
               </>
             ) : (
@@ -291,7 +296,7 @@ export default function PaynowCheckoutModal({
                 <Alert variant="light" className="small">
                   <Smartphone size={16} className="me-2" />Payment is completed through Paynow Express Checkout. Once Paynow confirms it, your wallet, subscription, or league entry refreshes immediately and an email is sent.
                 </Alert>
-                <Button type="submit" className="w-100" disabled={busy === 'initiate'}>
+                <Button type="submit" className="w-100" disabled={busy === 'initiate' || checkoutAmountCents <= 0}>
                   {busy === 'initiate' ? <><Spinner size="sm" className="me-2" />Starting checkout…</> : `Pay with ${selectedMethod?.label}`}
                 </Button>
               </>
