@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Col, Form, Row } from 'react-bootstrap';
-import { Link2, ShieldCheck, Users } from 'lucide-react';
+import { ExternalLink, Link2, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../services/api';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
@@ -9,6 +9,8 @@ import ErrorState from '../components/ErrorState';
 import LoadingScreen from '../components/LoadingScreen';
 import FplSquadPitch from '../components/FplSquadPitch';
 import { extractFplManagerId } from '../utils/fplManagerLink';
+
+const TEAM_LINK_TUTORIAL_URL = 'https://www.tiktok.com/@supremeleaguesfl/video/7673399166277618966';
 
 export default function TeamPage() {
   const [data, setData] = useState(null);
@@ -89,7 +91,10 @@ export default function TeamPage() {
               <Form.Text className="text-muted">Copy the URL while viewing your FPL team, transfers, history or gameweek page.</Form.Text>
             </Form.Group>
             <Form.Group className="text-start mb-3"><Form.Label>Manager ID</Form.Label><Form.Control value={managerId} readOnly placeholder="Detected automatically" />{managerId && <Form.Text className="text-success">Manager found: {managerId}</Form.Text>}</Form.Group>
-            <Button type="submit" disabled={busy === 'link' || !managerId}><Link2 size={16} /> {busy === 'link' ? 'Linking…' : 'Link FPL Account'}</Button>
+            <div className="d-flex flex-wrap justify-content-center gap-2">
+              <Button type="submit" disabled={busy === 'link' || !managerId}><Link2 size={16} /> {busy === 'link' ? 'Linking…' : 'Link FPL Account'}</Button>
+              <Button as="a" href={TEAM_LINK_TUTORIAL_URL} target="_blank" rel="noopener noreferrer" variant="outline-primary"><ExternalLink size={16} /> Watch linking video</Button>
+            </div>
           </Form>
         )} />
       </div>

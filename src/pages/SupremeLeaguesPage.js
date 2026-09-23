@@ -58,7 +58,7 @@ function CompetitionCard({ item, onJoin }) {
 
     <div className="sfl-supreme-metrics my-4"><div><span>Prize</span><strong>{formatMoney(item.prizeCents)}</strong></div><div><span>Entry</span><strong>{clash ? 'FREE' : weeklyFlex ? `${formatMoney(item.entryFeeCents)} / plan` : 'Plan access'}</strong></div><div><span>My rank</span><strong>{entry?.currentRank || '—'}</strong></div><div><span>My score</span><strong>{entry?.currentScore ?? '—'}</strong></div></div>
 
-    {clash && <Alert variant="success" className="small"><strong>Clash of the Captains:</strong> free for linked users during FPL’s September gameweeks. Your captain’s raw points + vice-captain’s raw points make your Clash score. Highest score wins {formatMoney(item.prizeCents)}.</Alert>}
+    {clash && <Alert variant="success" className="small"><strong>Clash of the Captains:</strong> free for linked users during FPL’s September gameweeks. Your captain’s raw points + vice-captain’s raw points make your Clash score. Highest score wins {formatMoney(item.prizeCents)}. If the top Clash score is tied, the tied manager with the best (lowest) FPL overall rank for that gameweek wins the full prize.</Alert>}
 
     <div className="border rounded p-3 small mb-3"><div className="d-flex gap-2 align-items-start"><Clock3 size={16} className="mt-1 flex-shrink-0" /><div><strong>Official FPL entry deadline</strong><div className="text-muted">{formatDateTime(item.joinDeadlineAt)}</div></div></div>{item.lastFixtureKickoffAt && <div className="text-muted mt-2">Last scheduled fixture starts {formatDateTime(item.lastFixtureKickoffAt)}. Football completion is verified against FPL event and fixture completion.</div>}</div>
 

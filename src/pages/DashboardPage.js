@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Button, Col, Row, Tab, Tabs } from 'react-bootstrap';
-import { Activity, ArrowRight, CalendarClock, Crown, Link2, Sparkles, Trophy, WalletCards } from 'lucide-react';
+import { Activity, ArrowRight, CalendarClock, Crown, ExternalLink, Link2, Sparkles, Trophy, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, moneyFromCents } from '../services/api';
 import PageHeader from '../components/PageHeader';
@@ -15,6 +15,7 @@ import StatusBadge from '../components/StatusBadge';
 import CurrencyAmount from '../components/CurrencyAmount';
 
 const deadline = (value) => value ? new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : 'Waiting for FPL';
+const TEAM_LINK_TUTORIAL_URL = 'https://www.tiktok.com/@supremeleaguesfl/video/7673399166277618966';
 
 
 function deadlineParts(deadlineAt, now = Date.now()) {
@@ -80,6 +81,16 @@ function OnboardingDashboard({ data }) {
           <p className="lead text-muted mb-4">Your account is ready. We just need your public Fantasy Premier League manager ID so we can calculate your scores, captain picks, rank and league standings automatically.</p>
           <div className="d-flex flex-wrap gap-2">
             <Button as={Link} to="/app/team" size="lg"><Link2 size={18} /> Link my FPL team</Button>
+            <Button
+              as="a"
+              href={TEAM_LINK_TUTORIAL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outline-primary"
+              size="lg"
+            >
+              <ExternalLink size={18} /> Watch how to link your team
+            </Button>
             <Button as={Link} to="/app/leagues/supreme" variant="outline-dark" size="lg">See all competitions <ArrowRight size={18} /></Button>
           </div>
         </Col>
@@ -116,7 +127,8 @@ function OnboardingDashboard({ data }) {
     </div>
 
     <Alert variant="light" className="border">
-      <strong>What happens after linking?</strong> Supreme automatically refreshes your public FPL data in the background. You should not need to press a sync button to keep your dashboard or standings current.
+      <strong>Need help finding your FPL link?</strong>{' '}
+      <a href={TEAM_LINK_TUTORIAL_URL} target="_blank" rel="noopener noreferrer">Watch the TikTok walkthrough</a>. After linking, Supreme automatically refreshes your public FPL data in the background.
     </Alert>
   </>;
 }

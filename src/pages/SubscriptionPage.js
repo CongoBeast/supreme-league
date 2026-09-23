@@ -23,6 +23,13 @@ const PLAN_CODE_ALIASES = Object.freeze({
   'supreme-season-pass': 'season',
 });
 
+const CANONICAL_PLAN_PRICES_CENTS = Object.freeze({
+  monthly: 200,
+  plus: 500,
+  'half-season': 2000,
+  season: 4000,
+});
+
 function normalizePlanCode(value) {
   const normalized = String(value || '')
     .trim()
@@ -36,9 +43,15 @@ function normalizePlanCode(value) {
 }
 
 function normalizePlan(plan = {}) {
+  const planCode = normalizePlanCode(plan.planCode || plan.code || plan.slug || plan.planName);
+  const receivedAmount = Number(plan.amountCents);
+  const amountCents = Number.isInteger(receivedAmount) && receivedAmount > 0
+    ? receivedAmount
+    : (CANONICAL_PLAN_PRICES_CENTS[planCode] || 0);
   return {
     ...plan,
-    planCode: normalizePlanCode(plan.planCode || plan.code || plan.slug || plan.planName),
+    planCode,
+    amountCents,
   };
 }
 
@@ -80,6 +93,10 @@ export default function SubscriptionPage() {
     const plan = normalizePlan(rawPlan);
     if (!['monthly', 'plus', 'half-season', 'season'].includes(plan.planCode)) {
       setError(`The selected subscription plan is not configured correctly (${plan.planCode || 'missing code'}).`);
+      return;
+    }
+    if (!Number.isInteger(Number(plan.amountCents)) || Number(plan.amountCents) <= 0) {
+      setError('The subscription price could not be verified. Refresh the page before trying to pay.');
       return;
     }
     setError('');
