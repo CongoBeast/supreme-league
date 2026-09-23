@@ -5,6 +5,7 @@ import {
   LifeBuoy,
   LogOut,
   Menu,
+  MessageCircle,
   ShieldCheck,
   Trophy,
   UsersRound,
@@ -20,6 +21,7 @@ const links = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/leagues', label: 'Leagues', icon: Trophy },
   { to: '/admin/users', label: 'Users', icon: UsersRound },
+  { to: '/admin/outreach', label: 'WhatsApp outreach', icon: MessageCircle },
   { to: '/admin/finances', label: 'Finances', icon: WalletCards },
   { to: '/admin/tickets', label: 'Support tickets', icon: LifeBuoy },
 ];
