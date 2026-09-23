@@ -12,6 +12,7 @@ import AdminUserDetailPage from './pages/AdminUserDetailPage';
 import AdminFinancesPage from './pages/AdminFinancesPage';
 import AdminTicketsPage from './pages/AdminTicketsPage';
 import AdminTicketDetailPage from './pages/AdminTicketDetailPage';
+import AdminOutreachPage from './pages/AdminOutreachPage';
 
 export const adminRouteElements = (
   <>
@@ -24,6 +25,7 @@ export const adminRouteElements = (
       <Route path="leagues/:id" element={<AdminLeagueDetailPage />} />
       <Route path="users" element={<AdminUsersPage />} />
       <Route path="users/:id" element={<AdminUserDetailPage />} />
+      <Route path="outreach" element={<AdminOutreachPage />} />
       <Route path="finances" element={<AdminFinancesPage />} />
       <Route path="tickets" element={<AdminTicketsPage />} />
       <Route path="tickets/:id" element={<AdminTicketDetailPage />} />
