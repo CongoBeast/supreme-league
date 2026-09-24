@@ -13,6 +13,7 @@ import {
 import { adminApi, humanize, money } from '../adminApi';
 import { AdminError, AdminLoading } from '../components/AdminDataState';
 import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel';
+import AdminMetaAdsPanel from '../components/AdminMetaAdsPanel';
 import AdminPageHeader from '../components/AdminPageHeader';
 import StatCard from '../components/StatCard';
 
@@ -211,6 +212,7 @@ export default function AdminDashboardPage() {
         </Col>
       </Row>
 
+      <AdminMetaAdsPanel refreshToken={refreshToken} />
       <AdminAnalyticsPanel refreshToken={refreshToken} />
     </>
   );
