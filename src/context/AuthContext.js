@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
+import { clearMarketingAttribution, getStoredMarketingAttribution } from '../utils/marketingAttribution';
 
 const AuthContext = createContext(null);
 
@@ -43,9 +44,10 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (values) => {
-    const data = await api('/api/auth/register', { method: 'POST', body: values });
+    const data = await api('/api/auth/register', { method: 'POST', body: { ...values, marketingAttribution: getStoredMarketingAttribution() } });
     setUser(data.user);
     setSessionMessage('');
+    clearMarketingAttribution();
     return data.user;
   };
 
