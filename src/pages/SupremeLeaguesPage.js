@@ -50,25 +50,25 @@ function CompetitionCard({ item, onJoin }) {
   const league = item.league || {};
   const entry = item.myEntry;
   const status = competitionStatus(item);
-  const weeklyFlex = item.paymentOptions?.includes('one-off') || (item.cadence === 'weekly' && Number(item.entryFeeCents || 0) > 0);
+  const oneOffFlex = item.paymentOptions?.includes('one-off') || (['weekly', 'bi-weekly'].includes(item.cadence) && Number(item.entryFeeCents || 0) > 0);
   const clash = item.cadence === 'clash-captains' || item.scoringMode === 'captain-vice';
 
   return <Card className="h-100 border-0 shadow-sm sfl-supreme-card"><Card.Body className="d-flex flex-column">
     <div className="d-flex justify-content-between gap-3 align-items-start"><div><div className="sfl-kicker">{clash ? <Sparkles size={15} /> : <Crown size={15} />} {clash ? 'September special' : 'Supreme competition'}</div><h2 className="h5 mt-2 mb-1">{league.name || item.periodLabel}</h2><p className="text-muted mb-0">Gameweeks {item.startGameweek}–{item.endGameweek}</p></div><Badge bg={status.bg} text={status.text}>{status.label}</Badge></div>
 
-    <div className="sfl-supreme-metrics my-4"><div><span>Prize</span><strong>{formatMoney(item.prizeCents)}</strong></div><div><span>Entry</span><strong>{clash ? 'FREE' : weeklyFlex ? `${formatMoney(item.entryFeeCents)} / plan` : 'Plan access'}</strong></div><div><span>My rank</span><strong>{entry?.currentRank || '—'}</strong></div><div><span>My score</span><strong>{entry?.currentScore ?? '—'}</strong></div></div>
+    <div className="sfl-supreme-metrics my-4"><div><span>Prize</span><strong>{formatMoney(item.prizeCents)}</strong></div><div><span>Entry</span><strong>{clash ? 'FREE' : oneOffFlex ? `${formatMoney(item.entryFeeCents)} / plan` : 'Plan access'}</strong></div><div><span>My rank</span><strong>{entry?.currentRank || '—'}</strong></div><div><span>My score</span><strong>{entry?.currentScore ?? '—'}</strong></div></div>
 
     {clash && <Alert variant="success" className="small"><strong>Clash of the Captains:</strong> free for linked users during FPL’s September gameweeks. Your captain’s raw points + vice-captain’s raw points make your Clash score. Highest score wins {formatMoney(item.prizeCents)}. If the top Clash score is tied, the tied manager with the best (lowest) FPL overall rank for that gameweek wins the full prize.</Alert>}
 
     <div className="border rounded p-3 small mb-3"><div className="d-flex gap-2 align-items-start"><Clock3 size={16} className="mt-1 flex-shrink-0" /><div><strong>Official FPL entry deadline</strong><div className="text-muted">{formatDateTime(item.joinDeadlineAt)}</div></div></div>{item.lastFixtureKickoffAt && <div className="text-muted mt-2">Last scheduled fixture starts {formatDateTime(item.lastFixtureKickoffAt)}. Football completion is verified against FPL event and fixture completion.</div>}</div>
 
     {item.footballFinished && !item.scoringFinalized && <Alert variant="warning" className="small">Football is verified finished. Prize settlement is waiting for FPL <code>data_checked</code>.</Alert>}
-    {weeklyFlex && item.includedWithSubscription && <Alert variant="success" className="small">Your subscription has already entered you. No $1 payment is required.</Alert>}
-    {weeklyFlex && !item.joined && <Alert variant="light" className="border small mb-3">Choose either an eligible subscription or a one-off {formatMoney(item.entryFeeCents)} weekly entry. Both play in the same leaderboard for the same {formatMoney(item.prizeCents)} prize.</Alert>}
+    {oneOffFlex && item.includedWithSubscription && <Alert variant="success" className="small">Your subscription has already entered you. No one-off payment is required.</Alert>}
+    {oneOffFlex && !item.joined && <Alert variant="light" className="border small mb-3">Choose either an eligible subscription or a one-off {formatMoney(item.entryFeeCents)} {item.cadence === 'bi-weekly' ? 'bi-weekly' : 'weekly'} entry. Both play in the same leaderboard for the same {formatMoney(item.prizeCents)} prize.</Alert>}
 
     <div className="d-flex gap-2 flex-wrap mt-auto">
       {item.joinOpen && <Button onClick={() => onJoin(item)}>Pay {formatMoney(item.entryFeeCents)} &amp; play</Button>}
-      {weeklyFlex && !item.joined && new Date(item.joinDeadlineAt) > new Date() && <Button as={Link} to="/app/subscription" variant="outline-primary">Use a subscription</Button>}
+      {oneOffFlex && !item.joined && new Date(item.joinDeadlineAt) > new Date() && <Button as={Link} to="/app/subscription" variant="outline-primary">Use a subscription</Button>}
       <Button as={Link} to={`/app/leagues/${item.leagueId}`} variant="outline-dark">View standings</Button>
     </div>
   </Card.Body></Card>;
@@ -123,7 +123,7 @@ export default function SupremeLeaguesPage() {
   return <div>
     <SupremeBreadcrumbs />
     <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4"><div><div className="sfl-kicker"><Trophy size={16} /> Supreme competitions</div><h1 className="mt-2 mb-2">Supreme Leagues</h1><p className="text-muted mb-0">The nearest joinable competition is always shown first. Use the live filters to narrow the competitions already provisioned from FPL.</p></div>{refreshing && <Badge bg="light" text="dark" className="border px-3 py-2">Updating from FPL…</Badge>}</div>
-    <Alert variant="light" className="border mb-4">Weekly: <strong>$1 one-off or eligible subscription</strong> · guaranteed <strong>$10 prize</strong>. Entry closes at FPL <code>deadline_time</code>; football completion is verified from the event plus all fixtures; payout normally waits for <code>data_checked</code>.</Alert>
+    <Alert variant="light" className="border mb-4">Weekly: <strong>$1 one-off or eligible subscription</strong> · guaranteed <strong>$10 prize</strong>. Bi-weekly: <strong>$3 one-off or eligible subscription</strong> · guaranteed <strong>$15 prize</strong>. Entry closes at FPL <code>deadline_time</code>; football completion is verified from the event plus all fixtures; payout normally waits for <code>data_checked</code>.</Alert>
 
     {nextJoinable && <Alert variant="primary" className="border-0 shadow-sm mb-4"><div className="d-flex flex-wrap justify-content-between align-items-center gap-3"><div><div className="small text-uppercase fw-semibold mb-1">Next Supreme competition to join</div><div className="h5 mb-1">{nextJoinable.league?.name || nextJoinable.periodLabel}</div><div className="small">Gameweek {nextJoinable.startGameweek}{nextJoinable.endGameweek !== nextJoinable.startGameweek ? `–${nextJoinable.endGameweek}` : ''} · closes {formatDateTime(nextJoinable.joinDeadlineAt)}</div></div><Button as={Link} to={`/app/leagues/${nextJoinable.leagueId}`} variant="dark">View & join</Button></div></Alert>}
 
