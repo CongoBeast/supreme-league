@@ -3,6 +3,7 @@ import { Alert, Button, Col, Form, InputGroup, Row } from 'react-bootstrap';
 import { Copy, KeyRound, PlusCircle, RefreshCw, Search, Trophy } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, moneyFromCents } from '../services/api';
+import { competitionEntryLabel, requiresSubscription } from '../utils/competitionPricing';
 import PageHeader from '../components/PageHeader';
 import LeagueCard from '../components/LeagueCard';
 import EmptyState from '../components/EmptyState';
@@ -742,7 +743,7 @@ export function LeagueDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId]);
 
-  // Free leagues (e.g. Clash of the Captains, entryFeeCents === 0) have nothing
+  // Only explicitly free Clash of the Captains competitions have nothing
   // to charge, so joining never goes through the wallet/Paynow checkout — it
   // hits the plain join endpoint directly. Routing a $0 entry through the
   // payment gateway is what produced the "not enough balance" error, since
@@ -767,7 +768,7 @@ export function LeagueDetailsPage() {
   if (!data) return <LoadingScreen fullScreen={false} />;
 
   const league = data.league;
-  // freeEntry comes from the backend's SupremeLeagueMeta.entryMode check —
+  // freeEntry comes from the backend's strict Clash eligibility check —
   // NOT entryFeeCents. Several subscription-gated Supreme leagues (Bi-weekly,
   // Monthly, Half-season, Season) also have entryFeeCents === 0 without being
   // free for everyone, so entryFeeCents can't be used here.
@@ -785,12 +786,10 @@ export function LeagueDetailsPage() {
         Complete payment {moneyFromCents(league.entryFeeCents)}
       </Button>
     );
-  } else if (!league.joined && !league.inviteOnly && ['open', 'upcoming'].includes(league.status)) {
-    headerAction = (
-      <Button onClick={() => setCheckoutOpen(true)}>
-        Choose payment method · {moneyFromCents(league.entryFeeCents)}
-      </Button>
-    );
+  } else if (requiresSubscription(league) && !league.joined && ['open', 'upcoming'].includes(league.status)) {
+    headerAction = <Button as={Link} to="/app/subscription">Get eligible subscription · {competitionEntryLabel(league)}</Button>;
+  } else if (league.oneOffAllowed && !league.joined && !league.inviteOnly && ['open', 'upcoming'].includes(league.status)) {
+    headerAction = <Button onClick={() => setCheckoutOpen(true)}>Choose payment method · {competitionEntryLabel(league)}</Button>;
   }
 
   const copyCode = async () => {
@@ -869,8 +868,8 @@ export function LeagueDetailsPage() {
                 )}
               </div>
               <div>
-                <div className="muted small">Entry fee</div>
-                <strong><CurrencyAmount cents={league.entryFeeCents} /></strong>
+                <div className="muted small">Entry / subscription access</div>
+                <strong>{competitionEntryLabel(league)}</strong>
               </div>
               <div>
                 <div className="muted small">Paid participants</div>

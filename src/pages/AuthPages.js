@@ -175,7 +175,7 @@ export function RegisterPage() {
       {initialReferralCode && (
         <Alert variant="light" className="border d-flex gap-2 align-items-center">
           <Gift size={18} className="text-brand" />
-          Referral code <strong>{initialReferralCode}</strong> has been applied.
+          Referral code <strong>{initialReferralCode}</strong> was entered. It will be checked after registration.
         </Alert>
       )}
       <Form onSubmit={submit}>
@@ -235,7 +235,7 @@ export function RegisterPage() {
               onChange={(event) => setField('referralCode', event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
               placeholder="Enter a friend's referral code"
             />
-            <Form.Text>A valid referral code links your account to the member who invited you.</Form.Text>
+            <Form.Text>Optional. Leave blank or remove it at any time. An invalid code will not prevent you from creating your account.</Form.Text>
           </Col>
           <Col xs={12}>
             <RegistrationConsentFields values={form} onChange={setField} />

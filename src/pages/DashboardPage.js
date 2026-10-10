@@ -3,6 +3,7 @@ import { Alert, Badge, Button, Col, Row, Tab, Tabs } from 'react-bootstrap';
 import { Activity, ArrowRight, CalendarClock, Crown, ExternalLink, Link2, Sparkles, Trophy, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, moneyFromCents } from '../services/api';
+import { competitionEntryLabel } from '../utils/competitionPricing';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import LeagueCard from '../components/LeagueCard';
@@ -117,7 +118,7 @@ function OnboardingDashboard({ data }) {
             <div className="border rounded-4 p-3 h-100 d-flex flex-column">
               <div className="d-flex justify-content-between gap-2 align-items-start mb-2"><strong>{offer.name}</strong>{clash && <Badge bg="success">September</Badge>}</div>
               <div className="small text-muted mb-3">Gameweek {offer.startGameweek}{offer.endGameweek !== offer.startGameweek ? `–${offer.endGameweek}` : ''}</div>
-              <div className="d-flex justify-content-between border-top border-bottom py-2 mb-3"><span className="small text-muted">Entry</span><strong>{clash ? 'Free' : offer.entryFeeCents ? moneyFromCents(offer.entryFeeCents) : 'Subscription'}</strong></div>
+              <div className="d-flex justify-content-between border-top border-bottom py-2 mb-3"><span className="small text-muted">Entry</span><strong>{competitionEntryLabel(offer)}</strong></div>
               <div className="d-flex justify-content-between mb-3"><span className="small text-muted">Prize</span><strong>{moneyFromCents(offer.prizeCents)}</strong></div>
               <div className="small text-muted mt-auto"><CalendarClock size={14} className="me-1" /> Entry closes {deadline(offer.joinDeadlineAt)}</div>
             </div>
