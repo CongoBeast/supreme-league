@@ -102,14 +102,33 @@ export default function AdminDashboardPage() {
         </Col>
         <Col sm={6} xl={3}>
           <StatCard
-            label="Cash inflow — 30 months"
-            value={money(data.finances.cashInCents)}
-            detail="Completed external funds received"
+            label="Cash collected — lifetime"
+            value={money(data.cashAccounting?.lifetime?.collectedCents)}
+            detail="Completed real Paynow collections (excludes mock)"
             icon={CircleDollarSign}
             tone="success"
           />
         </Col>
       </Row>
+
+      <Card className="admin-card mb-4"><Card.Body>
+        <h2 className="admin-card-title mb-3">Cash movement (USD)</h2>
+        <Row className="g-3">
+          {[['Since launch', data.cashAccounting?.lifetime], ['This month (UTC)', data.cashAccounting?.thisMonth], ['Last month (UTC)', data.cashAccounting?.lastMonth]].map(([label, period]) => (
+            <Col md={4} key={label}><div className="p-3 rounded-4 bg-light">
+              <div className="fw-semibold mb-2">{label}</div>
+              <div>Collected: <strong>{money(period?.collectedCents || 0)}</strong></div>
+              <div>Paid out: <strong>{money(period?.paidOutCents || 0)}</strong></div>
+              <div>Net cash movement: <strong>{money((period?.collectedCents || 0) - (period?.paidOutCents || 0))}</strong></div>
+            </div></Col>
+          ))}
+        </Row>
+        <p className="small text-secondary mt-2 mb-0">Based on completed Paynow receipts and completed withdrawal transactions; excludes mock transactions and internal wallet transfers. Reconcile against your payment provider and bank.</p>
+        <h3 className="h6 mt-4">Recent financial transactions</h3>
+        <div className="table-responsive"><table className="table table-sm"><thead><tr><th>Date</th><th>Player</th><th>Type</th><th>Status</th><th>Amount</th></tr></thead><tbody>
+          {(data.recentTransactions || []).map((tx) => <tr key={tx._id}><td>{new Date(tx.createdAt).toLocaleString()}</td><td>{tx.userId?.fullName || 'Unknown'}</td><td>{tx.type}</td><td>{tx.status}</td><td>{money(tx.amountCents)}</td></tr>)}
+        </tbody></table></div>
+      </Card.Body></Card>
 
       <Row className="g-4">
         <Col xl={7}>
