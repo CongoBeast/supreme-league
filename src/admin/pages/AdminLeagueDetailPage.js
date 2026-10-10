@@ -4,6 +4,7 @@ import { CalendarClock, RefreshCw, ShieldCheck, Siren, Trophy, UsersRound } from
 import { Link, useParams } from 'react-router-dom';
 
 import { adminApi, dateTime, humanize, money } from '../adminApi';
+import { competitionEntryLabel } from '../../utils/competitionPricing';
 import { AdminEmpty, AdminError, AdminLoading } from '../components/AdminDataState';
 import AdminPageHeader from '../components/AdminPageHeader';
 import StatCard from '../components/StatCard';
@@ -99,7 +100,7 @@ export default function AdminLeagueDetailPage() {
     <Row className="g-3 mb-4">
       <Col sm={6} xl={3}><StatCard label="Competition type" value={humanize(league.competitionType)} detail={humanize(league.ruleType)} icon={Trophy} /></Col>
       <Col sm={6} xl={3}><StatCard label="Members" value={`${members.length}/${league.maximumParticipants}`} detail={`${settlement.eligibleParticipants ?? members.length} eligible for settlement`} icon={UsersRound} tone="success" /></Col>
-      <Col sm={6} xl={3}><StatCard label="Entry / prize" value={`${money(league.entryFeeCents)} / ${money(league.displayedPrizeCents)}`} detail="Displayed prize" icon={ShieldCheck} tone="warning" /></Col>
+      <Col sm={6} xl={3}><StatCard label="Entry / prize" value={`${competitionEntryLabel(league)} / ${money(league.displayedPrizeCents)}`} detail="Displayed prize" icon={ShieldCheck} tone="warning" /></Col>
       <Col sm={6} xl={3}><StatCard label="Gameweek window" value={`${league.startGameweek}–${league.endGameweek}`} detail={`Created ${dateTime(league.createdAt)}`} icon={CalendarClock} tone="info" /></Col>
     </Row>
 

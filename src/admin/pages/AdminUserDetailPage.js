@@ -310,8 +310,8 @@ export default function AdminUserDetailPage() {
         <Col sm={6} xl={3}>
           <StatCard
             label="Wallet balance"
-            value={money(data.wallet?.availableBalanceCents)}
-            detail={`${money(data.wallet?.pendingBalanceCents)} pending`}
+            value={data.wallet ? money(data.wallet.availableBalanceCents) : 'Wallet missing'}
+            detail={data.wallet ? `${money(data.wallet.pendingBalanceCents)} pending` : 'Balance not available'}
             icon={WalletCards}
             tone="info"
           />
@@ -344,7 +344,7 @@ export default function AdminUserDetailPage() {
             <Card.Header className="d-flex align-items-center justify-content-between">
               <div>
                 <h2 className="admin-card-title">Wallet information</h2>
-                <div className="admin-card-subtitle">Current wallet balances and last balance activity.</div>
+                <div className="admin-card-subtitle">Current wallet balances and last balance activity. {!data.wallet && <span className="text-danger fw-semibold">Wallet record missing — do not assume balance is zero.</span>}</div>
               </div>
               <div className="d-flex gap-2 flex-wrap">
                 <Button size="sm" variant="primary" onClick={() => { setBonusError(''); setBonusForm({ amount: '', reason: '' }); setBonusOpen(true); }}><Gift size={15} /> Performance bonus</Button>
@@ -356,9 +356,9 @@ export default function AdminUserDetailPage() {
               <dl className="admin-detail-grid mb-0">
                 <div className="admin-detail-item"><dt>Wallet ID</dt><dd>{data.wallet?.walletIdentifier || '—'}</dd></div>
                 <div className="admin-detail-item"><dt>Currency</dt><dd>{data.wallet?.currency || 'USD'}</dd></div>
-                <div className="admin-detail-item"><dt>Available</dt><dd>{money(data.wallet?.availableBalanceCents)}</dd></div>
-                <div className="admin-detail-item"><dt>Pending</dt><dd>{money(data.wallet?.pendingBalanceCents)}</dd></div>
-                <div className="admin-detail-item"><dt>Chargeback balance</dt><dd>{money(data.wallet?.chargebackBalanceCents)}</dd></div>
+                <div className="admin-detail-item"><dt>Available</dt><dd>{data.wallet ? money(data.wallet.availableBalanceCents) : "— missing"}</dd></div>
+                <div className="admin-detail-item"><dt>Pending</dt><dd>{data.wallet ? money(data.wallet.pendingBalanceCents) : "— missing"}</dd></div>
+                <div className="admin-detail-item"><dt>Chargeback balance</dt><dd>{data.wallet ? money(data.wallet.chargebackBalanceCents) : "— missing"}</dd></div>
                 <div className="admin-detail-item"><dt>Last balance update</dt><dd>{dateTime(data.wallet?.lastBalanceUpdateAt)}</dd></div>
               </dl>
             </Card.Body>

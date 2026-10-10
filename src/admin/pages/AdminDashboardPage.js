@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Col, Row } from 'react-bootstrap';
+import { Alert, Button, Card, Col, Row, Table } from 'react-bootstrap';
 import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
   CircleDollarSign,
   LifeBuoy,
   RefreshCw,
@@ -10,7 +12,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 
-import { adminApi, humanize, money } from '../adminApi';
+import { adminApi, dateTime, humanize, money } from '../adminApi';
 import { AdminError, AdminLoading } from '../components/AdminDataState';
 import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel';
 import AdminMetaAdsPanel from '../components/AdminMetaAdsPanel';
@@ -23,6 +25,7 @@ export default function AdminDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [refreshToken, setRefreshToken] = useState(0);
+  const [emailHealth, setEmailHealth] = useState(null);
 
   const load = async (forceRefresh = false) => {
     if (data && forceRefresh) setRefreshing(true);
@@ -31,7 +34,13 @@ export default function AdminDashboardPage() {
 
     try {
       const suffix = forceRefresh ? `?refresh=${Date.now()}` : '';
-      setData(await adminApi(`/dashboard${suffix}`));
+      const [dashboardResult, healthResult] = await Promise.allSettled([
+        adminApi(`/dashboard${suffix}`),
+        adminApi('/notifications/health'),
+      ]);
+      if (dashboardResult.status === 'rejected') throw dashboardResult.reason;
+      setData(dashboardResult.value);
+      setEmailHealth(healthResult.status === 'fulfilled' ? healthResult.value : null);
       if (forceRefresh) setRefreshToken((value) => value + 1);
     } catch (requestError) {
       setError(requestError.message || 'The dashboard could not be loaded.');
@@ -71,6 +80,16 @@ export default function AdminDashboardPage() {
       />
 
       {error && <AdminError message={error} />}
+      {emailHealth && (!emailHealth.enabled || !emailHealth.senderConfigured || !emailHealth.adminInboxConfigured) && (
+        <Alert variant="warning">
+          <strong>Operations email alerts need configuration.</strong> Check EMAILS_ENABLED, RESENDER_API_KEY,
+          SENDING_EMAIL and ADMIN_NOTIFICATION_EMAIL in the backend deployment. Transactional and marketing
+          emails cannot be relied on until the service is configured and a real delivery test succeeds.
+        </Alert>
+      )}
+      {emailHealth?.failedCount > 0 && (
+        <Alert variant="warning">The email-delivery log contains {emailHealth.failedCount} failed message(s) since tracking began. Review the email provider and notification records.</Alert>
+      )}
 
       <Row className="g-3 mb-4">
         <Col sm={6} xl={3}>
@@ -102,33 +121,58 @@ export default function AdminDashboardPage() {
         </Col>
         <Col sm={6} xl={3}>
           <StatCard
-            label="Cash collected — lifetime"
+            label="Cash received — since launch"
             value={money(data.cashAccounting?.lifetime?.collectedCents)}
-            detail="Completed real Paynow collections (excludes mock)"
+            detail="Completed live Paynow receipts (no wallet transfers or tests)"
             icon={CircleDollarSign}
             tone="success"
           />
         </Col>
       </Row>
 
-      <Card className="admin-card mb-4"><Card.Body>
-        <h2 className="admin-card-title mb-3">Cash movement (USD)</h2>
-        <Row className="g-3">
-          {[['Since launch', data.cashAccounting?.lifetime], ['This month (UTC)', data.cashAccounting?.thisMonth], ['Last month (UTC)', data.cashAccounting?.lastMonth]].map(([label, period]) => (
-            <Col md={4} key={label}><div className="p-3 rounded-4 bg-light">
-              <div className="fw-semibold mb-2">{label}</div>
-              <div>Collected: <strong>{money(period?.collectedCents || 0)}</strong></div>
-              <div>Paid out: <strong>{money(period?.paidOutCents || 0)}</strong></div>
-              <div>Net cash movement: <strong>{money((period?.collectedCents || 0) - (period?.paidOutCents || 0))}</strong></div>
-            </div></Col>
-          ))}
-        </Row>
-        <p className="small text-secondary mt-2 mb-0">Based on completed Paynow receipts and completed withdrawal transactions; excludes mock transactions and internal wallet transfers. Reconcile against your payment provider and bank.</p>
-        <h3 className="h6 mt-4">Recent financial transactions</h3>
-        <div className="table-responsive"><table className="table table-sm"><thead><tr><th>Date</th><th>Player</th><th>Type</th><th>Status</th><th>Amount</th></tr></thead><tbody>
-          {(data.recentTransactions || []).map((tx) => <tr key={tx._id}><td>{new Date(tx.createdAt).toLocaleString()}</td><td>{tx.userId?.fullName || 'Unknown'}</td><td>{tx.type}</td><td>{tx.status}</td><td>{money(tx.amountCents)}</td></tr>)}
-        </tbody></table></div>
-      </Card.Body></Card>
+      <Card className="admin-card mb-4">
+        <Card.Header>
+          <h2 className="admin-card-title">Cash collected versus paid out</h2>
+          <div className="admin-card-subtitle">Actual recorded Paynow collections and completed cash withdrawals, in USD. Uses UTC calendar months. Prize credits inside wallets are not cash paid out.</div>
+        </Card.Header>
+        <Card.Body>
+          <Row className="g-3">
+            {[
+              ['Since launch', data.cashAccounting?.lifetime],
+              ['This month', data.cashAccounting?.thisMonth],
+              ['Last month', data.cashAccounting?.lastMonth],
+            ].map(([label, totals]) => <Col md={4} key={label}>
+              <div className="border rounded-4 p-3 h-100">
+                <h3 className="h6 mb-3">{label}</h3>
+                <div className="d-flex align-items-center justify-content-between mb-2"><span><ArrowDownToLine size={15} className="me-2" />Collected</span><strong>{money(totals?.collectedCents)}</strong></div>
+                <div className="d-flex align-items-center justify-content-between mb-2"><span><ArrowUpFromLine size={15} className="me-2" />Paid out</span><strong>{money(totals?.paidOutCents)}</strong></div>
+                <div className="d-flex align-items-center justify-content-between border-top pt-2"><span>Net cash movement</span><strong>{money(totals?.netCashMovementCents)}</strong></div>
+                <div className="text-secondary small mt-2">{totals?.collectionsCount ?? 0} receipts · {totals?.withdrawalsCount ?? 0} completed withdrawals</div>
+              </div>
+            </Col>)}
+          </Row>
+          <p className="text-secondary small mt-3 mb-0">These are application ledger figures, not a verified bank balance. Reconcile with your Paynow and withdrawal provider statements, especially historic/manual payments.</p>
+        </Card.Body>
+      </Card>
+
+      {Number(data.missingWalletCount || 0) > 0 && <Alert variant="warning"><strong>Missing wallet records:</strong> {data.missingWalletCount} user account(s) have no wallet document. Their balances are shown as missing in the player list; investigate before making adjustments.</Alert>}
+
+      <Card className="admin-card mb-4">
+        <Card.Header><h2 className="admin-card-title">Recent financial transactions</h2><div className="admin-card-subtitle">Latest 15 recorded transactions, including pending and failed attempts. These are not all cash movements.</div></Card.Header>
+        <Card.Body>
+          <Table responsive hover className="admin-table mb-0"><thead><tr><th>When</th><th>User</th><th>Transaction</th><th>Amount</th><th>Status</th><th>Provider</th></tr></thead>
+            <tbody>{(data.recentTransactions || []).map((transaction) => <tr key={transaction._id}>
+              <td>{dateTime(transaction.createdAt)}</td>
+              <td>{transaction.userId?.fullName || transaction.userId?.email || 'Unknown'}</td>
+              <td>{humanize(transaction.type)}<div className="small text-secondary">{transaction.reference}</div></td>
+              <td>{transaction.direction === 'debit' ? '−' : '+'}{money(transaction.amountCents)}</td>
+              <td>{humanize(transaction.status)}</td>
+              <td>{transaction.provider || '—'}</td>
+            </tr>)}</tbody>
+          </Table>
+          {!data.recentTransactions?.length && <div className="text-secondary small">No transactions recorded yet.</div>}
+        </Card.Body>
+      </Card>
 
       <Row className="g-4">
         <Col xl={7}>

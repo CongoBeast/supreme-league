@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Col, Form, Row, Table } from 'react-bootstrap';
-import { Search, ShieldCheck, UserPlus, UsersRound } from 'lucide-react';
+import { Button, Card, Col, Form, Row, Table } from 'react-bootstrap';
+import { RefreshCw, Search, ShieldCheck, UserPlus, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { adminApi, buildQuery, dateTime, money } from '../adminApi';
@@ -21,6 +21,7 @@ export default function AdminUsersPage() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshIndex, setRefreshIndex] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function AdminUsersPage() {
     }, filters.search ? 300 : 0);
 
     return () => clearTimeout(timer);
-  }, [filters, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters, page, refreshIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateFilter = (key, value) => {
     setPage(1);
@@ -64,7 +65,8 @@ export default function AdminUsersPage() {
     <>
       <AdminPageHeader
         title="Manage users"
-        description="Find user accounts, review subscription and league participation, then open a profile for complete activity and financial history."
+        description="See wallet available, pending and total balances directly from stored wallet records. Missing wallets are shown explicitly rather than reported as $0."
+        actions={<Button variant="outline-dark" onClick={() => setRefreshIndex((value) => value + 1)} disabled={refreshing}><RefreshCw size={16} className="me-2" /> Refresh balances</Button>}
       />
 
       {dashboard && (
@@ -150,7 +152,10 @@ export default function AdminUsersPage() {
                   <th>Joined</th>
                   <th>Subscription</th>
                   <th>Leagues</th>
-                  <th>Wallet</th>
+                  <th>Available</th>
+                  <th>Pending</th>
+                  <th>Total in wallet</th>
+                  <th>Wallet record</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,7 +171,10 @@ export default function AdminUsersPage() {
                     <td>{dateTime(user.createdAt)}</td>
                     <td>{user.subscription?.planName || 'No active subscription'}</td>
                     <td>{user.leagueCount}</td>
-                    <td>{money(user.wallet?.availableBalanceCents)}</td>
+                    <td>{user.walletStatus === 'missing' || !user.wallet ? '—' : money(user.wallet.availableBalanceCents)}</td>
+                    <td>{user.walletStatus === 'missing' || !user.wallet ? '—' : money(user.wallet.pendingBalanceCents)}</td>
+                    <td className="fw-semibold">{user.walletStatus === 'missing' || !user.wallet ? '—' : money(user.walletTotalCents ?? (Number(user.wallet.availableBalanceCents || 0) + Number(user.wallet.pendingBalanceCents || 0)))}</td>
+                    <td><span className={user.walletStatus === 'missing' || !user.wallet ? 'text-danger fw-semibold' : 'text-success'}>{user.walletStatus === 'missing' || !user.wallet ? 'Missing — investigate' : 'Recorded'}</span><div className="admin-table-secondary">{user.wallet?.lastBalanceUpdateAt ? `Updated ${dateTime(user.wallet.lastBalanceUpdateAt)}` : ''}</div></td>
                   </tr>
                 ))}
               </tbody>

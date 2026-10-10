@@ -4,6 +4,7 @@ import { Layers3, RefreshCw, Search, Trophy, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { adminApi, buildQuery, dateTime, humanize, money } from '../adminApi';
+import { competitionEntryLabel } from '../../utils/competitionPricing';
 import {
   AdminEmpty,
   AdminError,
@@ -226,7 +227,7 @@ export default function AdminLeaguesPage() {
                   <th>Type</th>
                   <th>Status</th>
                   <th>Members</th>
-                  <th>Entry fee</th>
+                  <th>Entry / access price</th>
                   <th>Created</th>
                 </tr>
               </thead>
@@ -246,7 +247,7 @@ export default function AdminLeaguesPage() {
                     <td>
                       {league.memberCount}/{league.maximumParticipants}
                     </td>
-                    <td>{money(league.entryFeeCents)}</td>
+                    <td>{competitionEntryLabel(league)}</td>
                     <td>{dateTime(league.createdAt)}</td>
                   </tr>
                 ))}

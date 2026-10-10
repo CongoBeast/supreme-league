@@ -200,6 +200,25 @@ export default function AdminFinancesPage() {
         )}
       />
 
+      <Card className="admin-card mb-4">
+        <Card.Header><h2 className="admin-card-title">Verified-record cash flow</h2><div className="admin-card-subtitle">Lifetime, this month and last month · UTC month boundaries · mock payments and wallet purchases excluded.</div></Card.Header>
+        <Card.Body><Row className="g-3">
+          {[
+            ['Since launch', data?.cashAccounting?.lifetime],
+            ['This month', data?.cashAccounting?.thisMonth],
+            ['Last month', data?.cashAccounting?.lastMonth],
+          ].map(([label, cash]) => <Col md={4} key={label}>
+            <div className="border rounded-4 p-3 h-100">
+              <h3 className="h6">{label}</h3>
+              <div className="small mt-2">Collected <strong className="float-end">{money(cash?.collectedCents)}</strong></div>
+              <div className="small mt-2">Withdrawals paid <strong className="float-end">{money(cash?.paidOutCents)}</strong></div>
+              <hr />
+              <div className="small">Net movement <strong className="float-end">{money(cash?.netCashMovementCents)}</strong></div>
+            </div>
+          </Col>)}
+        </Row><div className="small text-secondary mt-3">Ledger totals require reconciliation against external provider/bank statements. Wallet prize credits are internal and not withdrawals.</div></Card.Body>
+      </Card>
+
       <Row className="g-3 mb-4">
         <Col sm={6} xl={3}>
           <StatCard
