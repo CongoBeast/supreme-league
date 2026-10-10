@@ -4,6 +4,7 @@ import { Copy, Globe2, LockKeyhole } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CurrencyAmount from './CurrencyAmount';
 import StatusBadge from './StatusBadge';
+import { competitionEntryLabel } from '../utils/competitionPricing';
 
 export default function LeagueCard({ league, compact = false }) {
   const [copied, setCopied] = useState(false);
@@ -44,11 +45,11 @@ export default function LeagueCard({ league, compact = false }) {
           </div>
         )}
         <div className="row g-3 small mb-4">
-          <div className="col-6"><div className="muted">Entry fee</div><div className="fw-bold"><CurrencyAmount cents={league.entryFeeCents} /></div></div>
+          <div className="col-6"><div className="muted">Entry / access</div><div className="fw-bold">{competitionEntryLabel(league)}</div></div>
           <div className="col-6"><div className="muted">Paid members</div><div className="fw-bold">{league.participantCount}/{league.maximumParticipants}</div></div>
           <div className="col-6"><div className="muted">Gameweeks</div><div className="fw-bold">{league.startGameweek}–{league.endGameweek}</div></div>
           <div className="col-6"><div className="muted">Join by</div><div className="fw-bold">{league.joinDeadlineAt ? new Date(league.joinDeadlineAt).toLocaleDateString('en-GB') : 'Not scheduled'}</div></div>
-          <div className="col-6"><div className="muted">Gross pool</div><div className="fw-bold"><CurrencyAmount cents={league.grossPoolCents} /></div></div>
+          <div className="col-6"><div className="muted">Gross pool</div><div className="fw-bold">{league.subscriptionOnly ? "Subscription funded" : <CurrencyAmount cents={league.grossPoolCents} />}</div></div>
           <div className="col-6"><div className="muted">Projected prize</div><div className="fw-bold"><CurrencyAmount cents={league.projectedPrizeCents || league.displayedPrizeCents} /></div></div>
           <div className="col-6"><div className="muted">Score through</div><div className="fw-bold">{league.scoreThroughGameweek ? `GW ${league.scoreThroughGameweek}` : 'Not synced'}</div></div>
           <div className="col-6"><div className="muted">Your payment</div><div className="fw-bold text-capitalize">{league.entry?.paymentStatus || 'Not started'}</div></div>
